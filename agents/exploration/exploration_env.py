@@ -14,7 +14,7 @@ import gzip
 class ExplorationEnv(gym.Wrapper):
    def __init__(self, env):
      super(ExplorationEnv, self).__init__(env)
-     self.episode=0
+     self.episode=None
      self.total_steps=0
      self.max_visited_x = None
      self.max_x = None
@@ -26,12 +26,15 @@ class ExplorationEnv(gym.Wrapper):
      env = self.env
      while hasattr(env, 'env'):
        env = env.env
-     return env.movie_id
+     return env.movie_id - 1
 
    def reset(self):
      print("EPISODE: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s max_visisted_x=%s max_x=%s total_reward=%s total_extra_reward=%s" % (datetime.datetime.now(), self.get_movie_id(), self.total_steps, self.episode, self.episode_step, self.max_visited_x, self.max_x, self.total_reward, self.total_extra_reward))
      sys.stdout.flush()
-     self.episode += 1
+     if self.episode is None:
+       self.episode = 0
+     else:
+       self.episode += 1
      self.max_visited_x = None
      self.max_x = None
      self.visited = dict()

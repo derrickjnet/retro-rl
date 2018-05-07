@@ -108,8 +108,8 @@ class ScalarQNetwork(TFQNetwork):
         temperature = self.session.run(self.temperature)
         actions = []
         for env_idx in range(0,len(observations)):
-          episode_step = states[0][env_idx]
-          states[0][env_idx] = episode_step + 1
+          episode_step = states[0][env_idx] + 1
+          states[0][env_idx] = episode_step
           #BEGIN: exploration
           if self.expert is not None:
             expert_flag = states[1][env_idx]
