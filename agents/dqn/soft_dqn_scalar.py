@@ -16,16 +16,15 @@ import sys
 import random
 import datetime
 
-import sys
-import random
-import datetime
-
 def noisy_net_models(session,
                    num_actions,
                    obs_vectorizer,
                    sigma0=0.5,
                    discount=0.99,
                    exploration_steps=100000, 
+                   cooling_steps=100000,
+                   start_temperature=10.0,
+                   stop_temperature=0.01,
                    expert_prob=0.01,
                    expert=None):
     """
@@ -41,7 +40,7 @@ def noisy_net_models(session,
         return NatureQNetwork(session, num_actions, obs_vectorizer, name,
                                   dueling=True,
                                   dense=partial(noisy_net_dense, sigma0=sigma0),
-                                  exploration_steps=exploration_steps,
+                                  exploration_steps=exploration_steps, cooling_steps=cooling_steps, start_temperature=start_temperature, stop_temperature=stop_temperature,
                                   expert_prob=expert_prob, expert=expert if name == 'online' else None)
     return maker('online'), maker('target'), discount
 
@@ -54,21 +53,29 @@ class ScalarQNetwork(TFQNetwork):
     """
 
     def __init__(self, session, num_actions, obs_vectorizer, name,
-                 dueling=False, dense=tf.layers.dense, loss_fn=tf.square,
-                 exploration_steps=None, expert_prob=None, expert=None):
+                 dueling=False, dense=tf.layers.dense, loss_fn=tf.square, 
+                 exploration_steps=None, cooling_steps=None, start_temperature=None, stop_temperature=None, expert_prob=None, expert=None):
         super(ScalarQNetwork, self).__init__(session, num_actions, obs_vectorizer, name)
         self.dueling = dueling
         self.dense = dense
         self.loss_fn = loss_fn
         self.exploration_steps = exploration_steps
+        self.cooling_steps = cooling_steps
         self.expert_prob = expert_prob
         self.expert = expert
         old_vars = tf.trainable_variables()
         with tf.variable_scope(name):
             #BEGIN: exploration
             self.total_steps_var = tf.Variable(name="total_steps", dtype=tf.int64, initial_value=tf.constant(0,dtype=tf.int64), trainable=False) 
-            self.total_steps_incr_op = tf.assign_add(self.total_steps_var, 1)    
-            #END: exploration
+            self.total_steps_incr_op = tf.assign_add(self.total_steps_var, 1)
+            #BEGIN: exploration
+            #BEGIN: soft q learning
+            self.temperature = tf.cond(
+                                self.total_steps_var <= exploration_steps,
+                                lambda: tf.maximum(1.0, start_temperature*(1.0-tf.cast(self.total_steps_var, tf.float32) / tf.cast(exploration_steps, tf.float32))),
+                                lambda: tf.maximum(stop_temperature, 1*(1.0-tf.cast(self.total_steps_var - exploration_steps,tf.float32) / tf.cast(cooling_steps, tf.float32)))
+                              )
+            #END: soft q learning
             self.step_obs_ph = tf.placeholder(self.input_dtype,
                                               shape=(None,) + obs_vectorizer.out_shape)
             self.step_base_out = self.base(self.step_obs_ph)
@@ -98,8 +105,10 @@ class ScalarQNetwork(TFQNetwork):
         values = self.session.run(self.step_values, feed_dict=feed)
         #BEGIN: exploration
         expert_action_probs = self.expert.step(observations)
-        total_steps = self.session.run(self.total_steps_incr_op)
         #END: exploration
+        #BEGIN: soft q learning
+        total_steps = self.session.run(self.total_steps_incr_op)
+        temperature = self.session.run(self.temperature)
         actions = []
         for env_idx in range(0,len(observations)):
           episode_step = states[0][env_idx] + 1
@@ -121,28 +130,46 @@ class ScalarQNetwork(TFQNetwork):
               continue 
           #END: exploration 
           action_values = values[env_idx, :]
-          action = np.argmax(action_values)
-          print("POLICY: timestamp=%s total_steps=%s env=%s episode=%s episode_step=%s action_values=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, self.episode_idx, episode_step, list(action_values), action))
+          action_logits = (action_values - np.max(action_values))/temperature
+          action_probs = np.exp(action_logits) / np.sum(np.exp(action_logits))
+          action_entropy = -np.sum(action_probs * action_logits) + np.log(np.sum(np.exp(action_logits)))
+          action = np.random.choice(len(action_probs), p=action_probs) 
+          print("POLICY: timestamp=%s total_steps=%s env=%s episode=%s episode_step=%s temperature=%s action_values=%s action_probs=%s action_entropy=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, self.episode_idx, episode_step, temperature, list(action_values), list(action_probs), action_entropy, action))
           actions.append(action)
         sys.stdout.flush()
+        #END: soft q learning
         return {
-            #BEGIN: exploration 
+            #BEGIN: soft q learning
             #'actions': np.argmax(values, axis=1),
-            #'states': None,
             'actions': actions,
+            #END: soft q learning
+            #BEGIN: exploration 
+            #'states': None,
             'states': states,
             #END: exploration 
-            'action_values': values
+            'action_values': values,
         }
 
     def transition_loss(self, target_net, obses, actions, rews, new_obses, terminals, discounts):
         with tf.variable_scope(self.name, reuse=True):
-            max_actions = tf.argmax(self.value_func(self.base(new_obses)),
-                                    axis=1, output_type=tf.int32)
+            #BEGIN: soft q learning
+            #max_actions = tf.argmax(self.value_func(self.base(new_obses)),
+            #                        axis=1, output_type=tf.int32)
+            action_values = self.value_func(self.base(new_obses))
+            ##action_logits = (action_values - tf.maximum(action_values, 1)) / self.temperature
+            ##action_probs = tf.nn.softmax(action_logits, axis=1)
+            #action_entropy = -tf.reduce_sum(tf.multiply(action_probs, action_logits), 1) + tf.log(tf.reduce_sum(tf.exp(action_logits), 1))
+            action_probs = tf.nn.softmax(action_values)
+            action_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=action_probs, logits=action_values)
+            #END: soft q learning
         with tf.variable_scope(target_net.name, reuse=True):
             target_preds = target_net.value_func(target_net.base(new_obses))
             target_preds = tf.where(terminals, tf.zeros_like(target_preds), target_preds)
-        targets = rews + discounts * take_vector_elems(target_preds, max_actions)
+        #BEGIN: soft q learning
+        #targets = rews + discounts * take_vector_elems(target_preds, max_actions)
+        targets = rews + discounts * (tf.reduce_sum(tf.multiply(target_preds, action_probs),1) + self.temperature * action_entropy) 
+        #END: soft q learning
+
         with tf.variable_scope(self.name, reuse=True):
             online_preds = self.value_func(self.base(obses))
             onlines = take_vector_elems(online_preds, actions)
@@ -236,15 +263,15 @@ class NatureQNetwork(ScalarQNetwork):
                  dueling=False,
                  dense=tf.layers.dense,
                  loss_fn=nature_huber_loss,
-                 exploration_steps=None, 
+                 exploration_steps=None, cooling_steps=None, start_temperature=None, stop_temperature=None, 
                  expert_prob=None, expert=None,
                  input_dtype=tf.uint8,
                  input_scale=1 / 0xff):
         self._input_dtype = input_dtype
         self.input_scale = input_scale
         super(NatureQNetwork, self).__init__(session, num_actions, obs_vectorizer, name,
-                                             dueling=dueling, dense=dense, loss_fn=loss_fn,
-                                             exploration_steps=exploration_steps,
+                                             dueling=dueling, dense=dense, loss_fn=loss_fn, 
+                                             exploration_steps=exploration_steps, cooling_steps=cooling_steps, start_temperature=start_temperature, stop_temperature=stop_temperature,
                                              expert_prob=expert_prob, expert=expert)
 
     @property

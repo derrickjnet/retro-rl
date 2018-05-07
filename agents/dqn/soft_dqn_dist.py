@@ -26,9 +26,11 @@ def rainbow_models(session,
                    sigma0=0.5,
                    discount=0.99,
                    exploration_steps=100000, 
+                   cooling_steps=100000,
+                   start_temperature=10.0,
+                   stop_temperature=0.01,
                    expert_prob=0.01,
                    expert=None):
- 
     """
     Create the models used for Rainbow
     (https://arxiv.org/abs/1710.02298).
@@ -47,7 +49,7 @@ def rainbow_models(session,
         return NatureDistQNetwork(session, num_actions, obs_vectorizer, name,
                                   num_atoms, min_val, max_val, dueling=True,
                                   dense=partial(noisy_net_dense, sigma0=sigma0),
-                                  exploration_steps=exploration_steps, 
+                                  exploration_steps=exploration_steps, cooling_steps=cooling_steps, start_temperature=start_temperature, stop_temperature=stop_temperature,
                                   expert_prob=expert_prob if name == 'online' else None,
                                   expert=expert if name == 'online' else None)
     return maker('online'), maker('target'), discount
@@ -63,7 +65,7 @@ class DistQNetwork(TFQNetwork):
 
     def __init__(self, session, num_actions, obs_vectorizer, name, num_atoms, min_val, max_val,
                  dueling=False, dense=tf.layers.dense,
-                 exploration_steps=None, expert_prob=None, expert=None):
+                 exploration_steps=None, cooling_steps=None, start_temperature=None, stop_temperature=None, expert_prob=None, expert=None):
         """
         Create a distributional network.
         Args:
@@ -83,6 +85,7 @@ class DistQNetwork(TFQNetwork):
         self.dueling = dueling
         self.dense = dense
         self.exploration_steps = exploration_steps
+        self.cooling_steps = cooling_steps
         self.expert_prob = expert_prob
         self.expert = expert
         self.dist = ActionDist(num_atoms, min_val, max_val)
@@ -92,6 +95,13 @@ class DistQNetwork(TFQNetwork):
             self.total_steps_var = tf.Variable(name="total_steps", dtype=tf.int64, initial_value=tf.constant(0,dtype=tf.int64), trainable=False) 
             self.total_steps_incr_op = tf.assign_add(self.total_steps_var, 1)
             #END: exploration
+            #BEGIN: soft q learning
+            self.temperature = tf.cond(
+                                self.total_steps_var <= exploration_steps,
+                                lambda: tf.maximum(1.0, start_temperature*(1.0-tf.cast(self.total_steps_var, tf.float32) / tf.cast(exploration_steps, tf.float32))),
+                                lambda: tf.maximum(stop_temperature, 1*(1.0-tf.cast(self.total_steps_var - exploration_steps,tf.float32) / tf.cast(cooling_steps, tf.float32)))
+                              )
+            #END: soft q learning
             self.step_obs_ph = tf.placeholder(self.input_dtype,
                                               shape=(None,) + obs_vectorizer.out_shape)
             self.step_base_out = self.base(self.step_obs_ph)
@@ -126,6 +136,8 @@ class DistQNetwork(TFQNetwork):
         total_steps = self.session.run(self.total_steps_incr_op)
         #END: exploration
         actions = []
+        #BEGIN: soft q learning
+        temperature = self.session.run(self.temperature)
         for env_idx in range(0,len(observations)):
           episode_step = states[0][env_idx] + 1
           states[0][env_idx] = episode_step
@@ -146,15 +158,21 @@ class DistQNetwork(TFQNetwork):
               continue 
           #END: exploration 
           action_values = values[env_idx, :]
-          action = np.argmax(action_values)
-          print("POLICY: timestamp=%s total_steps=%s env=%s episode=%s episode_step=%s action_values=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, self.episode_idx, episode_step, list(action_values), action))
+          action_logits = (action_values - np.max(action_values))/temperature
+          action_probs = np.exp(action_logits) / np.sum(np.exp(action_logits))
+          action_entropy = -np.sum(action_probs * action_logits) + np.log(np.sum(np.exp(action_logits)))
+          action = np.random.choice(len(action_probs), p=action_probs) 
+          print("POLICY: timestamp=%s total_steps=%s env=%s episode=%s episode_step=%s temperature=%s action_values=%s action_probs=%s action_entropy=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, self.episode_idx, episode_step, temperature, list(action_values), list(action_probs), action_entropy, action))
           actions.append(action)
         sys.stdout.flush()
+        #END: soft q learning
         return {
-            #BEGIN: exploration 
+            #BEGIN: soft q learning
             #'actions': np.argmax(values, axis=1),
-            #'states': None,
             'actions': actions,
+            #END: soft q learning
+            #BEGIN: exploration 
+            #'states': None,
             'states': states,
             #END: exploration 
             'action_values': values,
@@ -163,16 +181,28 @@ class DistQNetwork(TFQNetwork):
 
     def transition_loss(self, target_net, obses, actions, rews, new_obses, terminals, discounts):
         with tf.variable_scope(self.name, reuse=True):
-            max_actions = tf.argmax(self.dist.mean(self.value_func(self.base(new_obses))),
-                                    axis=1, output_type=tf.int32)
+            #BEGIN: soft q learning
+            #max_actions = tf.argmax(self.dist.mean(self.value_func(self.base(new_obses))),
+            #                        axis=1, output_type=tf.int32)
+            action_values = self.dist.mean(self.value_func(self.base(new_obses)))
+            #action_logits = (action_values - tf.maximum(action_values, 1)) / self.temperature
+            #action_probs = tf.nn.softmax(action_logits, axis=1)
+            #action_entropy = -tf.reduce_sum(tf.multiply(action_probs, action_logits), 1) + tf.log(tf.reduce_sum(tf.exp(action_logits), 1))
+            action_probs = tf.nn.softmax(action_values)
+            action_entropy = tf.nn.softmax_cross_entropy_with_logits_v2(labels=action_probs, logits=action_values)
+            #END: soft q learning
         with tf.variable_scope(target_net.name, reuse=True):
             target_preds = target_net.value_func(target_net.base(new_obses))
             target_preds = tf.where(terminals,
                                     tf.zeros_like(target_preds) - log(self.dist.num_atoms),
                                     target_preds)
         discounts = tf.where(terminals, tf.zeros_like(discounts), discounts)
-        target_dists = self.dist.add_rewards(tf.exp(take_vector_elems(target_preds, max_actions)),
-                                             rews, discounts)
+        #BEGIN: soft q learning
+        #target_dists = self.dist.add_rewards(tf.exp(take_vector_elems(target_preds, max_actions)),
+        #                                     rews, discounts)
+        target_dists = self.dist.add_rewards(tf.reduce_sum(tf.multiply(tf.exp(target_preds), tf.expand_dims(action_probs,-1)),1),
+                                             rews + self.temperature*discounts*action_entropy, discounts)
+        #END: soft q learning
         with tf.variable_scope(self.name, reuse=True):
             online_preds = self.value_func(self.base(obses))
             onlines = take_vector_elems(online_preds, actions)
@@ -260,7 +290,7 @@ class NatureDistQNetwork(DistQNetwork):
                  max_val,
                  dueling=False,
                  dense=tf.layers.dense,
-                 exploration_steps=None, 
+                 exploration_steps=None, cooling_steps=None, start_temperature=None, stop_temperature=None, 
                  expert_prob=None, expert=None,
                  input_dtype=tf.uint8,
                  input_scale=1 / 0xff):
@@ -269,7 +299,7 @@ class NatureDistQNetwork(DistQNetwork):
         super(NatureDistQNetwork, self).__init__(session, num_actions, obs_vectorizer, name,
                                                  num_atoms, min_val, max_val,
                                                  dueling=dueling, dense=dense,
-                                                 exploration_steps=exploration_steps, 
+                                                 exploration_steps=exploration_steps, cooling_steps=cooling_steps, start_temperature=start_temperature, stop_temperature=stop_temperature,
                                                  expert_prob=expert_prob, expert=expert)
 
     @property
