@@ -28,7 +28,7 @@ def main():
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
     config.log_device_placement=True
-    with tf.device('/gpu:0'):
+    with tf.device(os.environ.get("RETRO_DEVICE", '/gpu:0')):
       with tf.Session(config=config) as sess:
         if os.environ['RETRO_DQN'] == 'noisy_net':
           dqn = DQN(*noisy_net_models(sess,
