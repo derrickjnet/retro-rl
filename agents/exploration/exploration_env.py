@@ -9,6 +9,7 @@ import sys
 import math
 import datetime
 import cloudpickle
+import gzip
 
 class ExplorationEnv(gym.Wrapper):
    def __init__(self, env):
@@ -85,8 +86,11 @@ class ExplorationEnv(gym.Wrapper):
          'total_reward' : self.total_reward,
          'total_extra_reward' : self.total_extra_reward
        }
-       record_file_name = os.environ['RETRO_RECORD'] + "/" + os.environ['RETRO_GAME'] + "-" + os.environ['RETRO_STATE'] + "-" + str(self.get_movie_id()).zfill(4) + "." + str(self.episode) + "." + str(self.episode_step) + ".step"
-       record_file = open(record_file_name, "wb")
+       record_dir_name = os.environ['RETRO_RECORD'] + "/" + os.environ['RETRO_GAME'] + "-" + os.environ['RETRO_STATE'] + "-" + str(self.get_movie_id()).zfill(4) + ".steps/"
+       if self.episode_step == 1: 
+         os.mkdir(record_dir_name) 
+       record_file_name = record_dir_name + str(self.episode) + "." + str(self.episode_step) + ".step.gz"
+       record_file = gzip.open(record_file_name, "wb")
        cloudpickle.dump(record, record_file)
        record_file.close() 
 
