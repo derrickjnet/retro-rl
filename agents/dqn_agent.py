@@ -34,7 +34,7 @@ class ScheduledSaver:
     self.last_save = 0
 
   def handle_episode(self, steps):
-    self.total_steps = steps
+    self.total_steps += steps
     if self.last_save + self.save_steps < self.total_steps:
       self.do_save()
       self.last_save = self.total_steps
@@ -85,7 +85,7 @@ def main():
                                   discount=0.999, #0.99
                                   expert = MoveExpert()
                                  ))
-      saver = ScheduledSaver(os.environ["RETRO_LOGDIR"] + "/checkpoints", save_steps=1000)
+      saver = ScheduledSaver(os.environ["RETRO_LOGDIR"] + "/checkpoints/", save_steps=1000)
       player = NStepPlayer(BatchedPlayer(env, dqn.online_net), 3)
       optimize = dqn.optimize(learning_rate=1e-4)
       sess.run(tf.global_variables_initializer())
