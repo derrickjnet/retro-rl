@@ -28,7 +28,7 @@ class ScheduledSaver:
   def __init__(self, fname, save_steps):
     os.makedirs(os.path.dirname(fname), exist_ok=True)
     self.fname = fname
-    self.saver = tf.train.Saver()
+    self.saver = tf.train.Saver(max_to_keep=None)
     self.save_steps = 0
     self.total_steps = 0
     self.last_save = 0
@@ -40,7 +40,7 @@ class ScheduledSaver:
       self.last_save = self.total_steps
 
   def do_save(self):
-      self.saver.save(tf.get_default_session(), self.fname)
+      self.saver.save(tf.get_default_session(), self.fname + "/checkpoint", global_step=self.total_steps)
 
 def main():
     """Run DQN until the environment throws an exception."""
