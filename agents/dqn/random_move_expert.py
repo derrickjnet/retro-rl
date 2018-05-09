@@ -1,7 +1,7 @@
 import numpy as np
 import random
 
-class MoveExpert:
+class RandomMoveExpert:
   def reset(self, num_actions, batch_size):
     self.num_actions = num_actions
     self.batch_size = batch_size

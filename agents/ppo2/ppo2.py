@@ -23,7 +23,7 @@ class Model(object):
 
         #BEGIN: entropy regularization
         self.ent_coef = ent_coef
-        with tf.variable_scope('model'):
+        with tf.variable_scope('ppo2_model'):
           self.total_steps_var = tf.Variable(name="total_steps", dtype=tf.int64, initial_value=tf.constant(0,dtype=tf.int64), trainable=False) 
           self.total_steps_incr_op = tf.assign_add(self.total_steps_var, 1)
           self.temperature = tf.cond(
@@ -62,7 +62,7 @@ class Model(object):
         #BEGIN: entropy regularization
         loss = pg_loss - entropy * ent_coef * self.temperature + vf_loss * vf_coef
         #END: entropy regularization
-        with tf.variable_scope('model'):
+        with tf.variable_scope('ppo2_model'):
             params = tf.trainable_variables()
         grads = tf.gradients(loss, params)
         if max_grad_norm is not None:

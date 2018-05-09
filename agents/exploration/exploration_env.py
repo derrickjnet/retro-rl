@@ -12,8 +12,9 @@ import cloudpickle
 import gzip
 
 class ExplorationEnv(gym.Wrapper):
-   def __init__(self, env):
+   def __init__(self, env, max_exploration_steps=None):
      super(ExplorationEnv, self).__init__(env)
+     self.max_exploration_steps = max_exploration_steps
      self.episode=None
      self.total_steps=0
      self.max_visited_x = None
@@ -64,6 +65,8 @@ class ExplorationEnv(gym.Wrapper):
      else:
        self.visited[cell_key] += 1
      extra_reward = math.sqrt(current_x**2 + current_y**2) * 9000.0 / self.max_x / (self.max_x / cell_size) / self.visited[cell_key]
+     if self.max_exploration_steps != None:
+       extra_reward *= max(0, self.max_exploration_steps - self.total_steps) / float(self.max_exploration_steps)
      self.total_steps += 1
      self.episode_step += 1
      self.total_reward += reward
@@ -78,7 +81,7 @@ class ExplorationEnv(gym.Wrapper):
          'total_steps' : self.total_steps, 
          'episode' : self.episode,
          'episode_step' : self.episode_step,
-         'last_obs' : self.last_obs,
+         #'last_obs' : self.last_obs,
          'last_info' : self.last_info,
          'action' : action,
          'obs' : obs,

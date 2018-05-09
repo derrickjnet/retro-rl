@@ -18,6 +18,13 @@ from exploration.exploration_env import ExplorationEnv
 from sonic_util import RewardScaler,AllowBacktracking,make_env
 
 def main():
+    discount = os.environ.get('RETRO_DISCOUNT')
+    if discount != None:
+      discount = float(discount)
+    else:
+      discount=0.99
+    print("DISCOUNT: %s" % (discount,))
+
     """Run PPO until the environment throws an exception."""
     logger.configure(dir=os.environ.get('RETRO_LOGDIR'))
     config = tf.ConfigProto()
@@ -30,7 +37,7 @@ def main():
                    nsteps=4096,
                    nminibatches=8,
                    lam=0.95,
-                   gamma=0.99,
+                   gamma=discount, #0.99
                    noptepochs=3,
                    log_interval=1,
                    ent_coef=0.01,

@@ -42,8 +42,8 @@ def noisy_net_models(session,
                                   dueling=True,
                                   dense=partial(noisy_net_dense, sigma0=sigma0),
                                   exploration_steps=exploration_steps,
-                                  expert_prob=expert_prob, expert=expert if name == 'online' else None)
-    return maker('online'), maker('target'), discount
+                                  expert_prob=expert_prob, expert=expert if name == 'dqn_online' else None)
+    return maker('dqn_online'), maker('dqn_target'), discount
 
 class ScalarQNetwork(TFQNetwork):
     """
