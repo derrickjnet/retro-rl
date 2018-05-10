@@ -129,8 +129,8 @@ class ScalarQNetwork(TFQNetwork):
               actions.append(action)
               continue 
           #END: discover 
+          action_values = values[env_idx, :]
           if temperature >= 0.01: 
-            action_values = values[env_idx, :]
             action_logits = (action_values - np.max(action_values))/temperature
             action_probs = np.exp(action_logits) / np.sum(np.exp(action_logits))
             action_entropy = -np.sum(action_probs * action_logits) + np.log(np.sum(np.exp(action_logits)))

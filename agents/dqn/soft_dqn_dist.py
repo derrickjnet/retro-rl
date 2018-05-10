@@ -135,6 +135,7 @@ class DistQNetwork(TFQNetwork):
         expert_action_probs = self.expert.step(observations)
         total_steps = self.session.run(self.total_steps_incr_op)
         #END: discover
+        #BEGIN: soft q learning
         actions = []
         temperature = self.session.run(self.temperature)
         for env_idx in range(0,len(observations)):
@@ -156,20 +157,19 @@ class DistQNetwork(TFQNetwork):
               actions.append(action)
               continue 
           #END: discover
+          action_values = values[env_idx, :]
           if temperature >= 0.01: 
-            #BEGIN: soft q learning
-            action_values = values[env_idx, :]
             action_logits = (action_values - np.max(action_values))/temperature
             action_probs = np.exp(action_logits) / np.sum(np.exp(action_logits))
             action_entropy = -np.sum(action_probs * action_logits) + np.log(np.sum(np.exp(action_logits)))
             action = np.random.choice(len(action_probs), p=action_probs) 
             print("POLICY: timestamp=%s total_steps=%s env=%s episode=%s episode_step=%s temperature=%s action_values=%s action_probs=%s action_entropy=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, self.episode_idx, episode_step, temperature, list(action_values), list(action_probs), action_entropy, action))
-            #END: soft q learning
           else:
             action = np.argmax(action_values)
             print("POLICY: timestamp=%s total_steps=%s env=%s episode=%s episode_step=%s action_values=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, self.episode_idx, episode_step, list(action_values), action))
           actions.append(action)
         sys.stdout.flush()
+        #END: soft q learning
         return {
             #BEGIN: soft q learning
             #'actions': np.argmax(values, axis=1),
