@@ -24,7 +24,7 @@ def noisy_net_models(session,
                    discover_steps=100000, 
                    cooling_steps=100000,
                    start_temperature=10.0,
-                   stop_temperature=0.0,
+                   stop_temperature=0.01,
                    expert_prob=0.01,
                    expert=None):
     """
@@ -130,7 +130,7 @@ class ScalarQNetwork(TFQNetwork):
               continue 
           #END: discover 
           action_values = values[env_idx, :]
-          if temperature >= 0.01: 
+          if temperature >= 0.001: 
             action_logits = (action_values - np.max(action_values))/temperature
             action_probs = np.exp(action_logits) / np.sum(np.exp(action_logits))
             action_entropy = -np.sum(action_probs * action_logits) + np.log(np.sum(np.exp(action_logits)))
@@ -161,12 +161,12 @@ class ScalarQNetwork(TFQNetwork):
             #                        axis=1, output_type=tf.int32)
             action_values = self.value_func(self.base(new_obses))
             action_probs = tf.cond(
-                                self.temperature >= 0.01, 
+                                self.temperature >= 0.001, 
                                 lambda: tf.nn.softmax(action_values), 
                                 lambda: tf.one_hot(tf.argmax(action_values, axis=1, output_type=tf.int32), self.num_actions)
                            )
             action_entropy = tf.cond(
-                                  self.temperature >= 0.01, 
+                                  self.temperature >= 0.001, 
                                   lambda: tf.nn.softmax_cross_entropy_with_logits_v2(labels=action_probs, logits=action_values),
                                   lambda: 0.0
                                 )

@@ -10,7 +10,8 @@ import tensorflow as tf
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 import ppo2.ppo2 as ppo2
 #import baselines.ppo2.ppo2 as ppo2
-import baselines.ppo2.policies as policies
+import ppo2.policies as policies
+#import baselines.ppo2.policies as policies
 import baselines.logger as logger
 import gym_remote.exceptions as gre
 
