@@ -30,7 +30,17 @@ def main():
     logger.configure(dir=os.environ.get('RETRO_LOGDIR'))
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
-    with tf.Session(config=config):
+    with tf.Session(config=config) as sess:
+        if "RETRO_INITDIR" in os.environ:
+          def init_fun():
+            saver = tf.train.Saver(var_list=tf.trainable_variables('ppo2_model'))
+            latest_checkpoint = tf.train.latest_checkpoint(os.environ['RETRO_INITDIR'])
+            print("LOAD_INIT_CHECKPOINT: %s" % (latest_checkpoint,))
+            if latest_checkpoint is not None:
+              saver.restore(sess, latest_checkpoint)
+        else:
+          init_fun = None 
+
         # Take more timesteps than we need to be sure that
         # we stop due to an exception.
         ppo2.learn(policy=policies.CnnPolicy,
@@ -45,7 +55,8 @@ def main():
                    lr=lambda _: 2e-4,
                    cliprange=lambda _: 0.1,
                    total_timesteps=int(1.5e6),
-                   save_interval=1)
+                   save_interval=1,
+                   init_fun=init_fun)
 
 if __name__ == '__main__':
     try:

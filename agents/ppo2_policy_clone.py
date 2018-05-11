@@ -32,7 +32,7 @@ def build_combined_dataset(data_file_path):
 
 data_file_path = sys.argv[1]
 
-checkpoints_path = data_file_path + "/tensorflow/"
+checkpoints_path = data_file_path + "tensorflow"
 os.makedirs(checkpoints_path, exist_ok=True)
 
 config = tf.ConfigProto()
@@ -41,9 +41,6 @@ config.gpu_options.allow_growth = True
 with tf.Session(config=config) as sess:
   train_model = policies.CnnPolicy(sess, np.zeros([84,84,4]), spaces.Discrete(7), 64, 4, reuse=False)
   saver = tf.train.Saver(var_list=tf.trainable_variables('ppo2_model'), max_to_keep=None)
-  latest_checkpoint = tf.train.latest_checkpoint(checkpoints_path)
-  if latest_checkpoint is not None:
-    saver.restore(sess, latest_checkpoint)
 
   dataset = build_combined_dataset(data_file_path) 
   batch_tensor = dataset.make_one_shot_iterator().get_next()
@@ -56,12 +53,17 @@ with tf.Session(config=config) as sess:
 
   tf.global_variables_initializer().run()
 
+  latest_checkpoint = tf.train.latest_checkpoint(checkpoints_path)
+  print("LOAD_CHECKPOINT: %s" % (latest_checkpoint,))
+  if latest_checkpoint is not None:
+    saver.restore(sess, latest_checkpoint)
+
   while True:
     (batch_obs, batch_targets) = sess.run(batch_tensor)
     train_loss_value, _, global_step_value = sess.run([train_loss, train_step, global_step], feed_dict={train_model.X:batch_obs, train_targets:batch_targets})
     print("STEP: step=%s loss=%s" % (global_step_value, train_loss_value))
     sys.stdout.flush()
     if global_step_value % 1000 == 0:
-      print("CHECKPOINT: step=%s" % (global_step_value,))
+      print("SAVE_CHECKPOINT: step=%s" % (global_step_value,))
       saver.save(sess, checkpoints_path + "/checkpoint", global_step=int(time.time()))
 

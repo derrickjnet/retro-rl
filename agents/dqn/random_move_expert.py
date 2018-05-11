@@ -2,6 +2,9 @@ import numpy as np
 import random
 
 class RandomMoveExpert:
+  def initialize(self):
+    pass
+
   def reset(self, num_actions, batch_size):
     self.num_actions = num_actions
     self.batch_size = batch_size

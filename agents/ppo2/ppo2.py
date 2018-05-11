@@ -198,7 +198,7 @@ def constfn(val):
 def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
             vf_coef=0.5,  max_grad_norm=0.5, gamma=0.99, lam=0.95,
             log_interval=10, nminibatches=4, noptepochs=4, cliprange=0.2,
-            save_interval=0, load_path=None):
+            save_interval=0, load_path=None, init_fun=None):
 
     if isinstance(lr, float): lr = constfn(lr)
     else: assert callable(lr)
@@ -220,6 +220,8 @@ def learn(*, policy, env, nsteps, total_timesteps, ent_coef, lr,
         with open(osp.join(logger.get_dir(), 'make_model.pkl'), 'wb') as fh:
             fh.write(cloudpickle.dumps(make_model))
     model = make_model()
+    if init_fun != None:
+       init_fun()
     if load_path is not None:
         model.load(load_path)
     runner = Runner(env=env, model=model, nsteps=nsteps, gamma=gamma, lam=lam)

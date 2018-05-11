@@ -97,7 +97,7 @@ class ScalarQNetwork(TFQNetwork):
         feed = self.step_feed_dict(observations, states)
         values = self.session.run(self.step_values, feed_dict=feed)
         #BEGIN: exploration
-        expert_action_probs = self.expert.step(observations)
+        expert_action_probs = self.expert.step(self.obs_vectorizer.to_vecs(observations))
         total_steps = self.session.run(self.total_steps_incr_op)
         #END: exploration
         actions = []

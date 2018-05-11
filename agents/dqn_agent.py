@@ -16,6 +16,7 @@ from anyrl.spaces import gym_space_vectorizer
 import gym_remote.exceptions as gre
 
 from dqn.random_move_expert import RandomMoveExpert
+from dqn.policy_expert import PolicyExpert
 from dqn.dqn_scalar import noisy_net_models as noisy_net_models
 from dqn.dqn_dist import rainbow_models as rainbow_models
 from dqn.soft_dqn_scalar import noisy_net_models as soft_noisy_net_models
@@ -59,12 +60,17 @@ def main():
     config.log_device_placement=True
     with tf.Session(config=config) as sess:
       with tf.device(os.environ.get("RETRO_DEVICE", '/gpu:0')):
+        if 'RETRO_POLICYDIR' in os.environ:
+          expert = PolicyExpert(sess, batch_size=1, policy_dir=os.environ['RETRO_POLICYDIR'])
+        else:
+          expert = RandomMoveExpert()
+
         if os.environ['RETRO_DQN'] == 'noisy_net':
           dqn = DQN(*noisy_net_models(sess,
                                   env.action_space.n,
                                   gym_space_vectorizer(env.observation_space),
                                   discount=discount, #0.99
-                                  expert = RandomMoveExpert()
+                                  expert = expert
                                  ))
         elif os.environ['RETRO_DQN'] == 'rainbow':
           dqn = DQN(*rainbow_models(sess,
@@ -74,14 +80,14 @@ def main():
                                   min_val=-1000, #-200
                                   max_val=1000, #200
                                   discount=discount, #0.99
-                                  expert = RandomMoveExpert()
+                                  expert = expert
                                  ))
         elif os.environ['RETRO_DQN'] == 'soft_noisy_net':
           dqn = DQN(*soft_noisy_net_models(sess,
                                   env.action_space.n,
                                   gym_space_vectorizer(env.observation_space),
                                   discount=discount, #0.99
-                                  expert = RandomMoveExpert()
+                                  expert = expert
                                  ))
         elif os.environ['RETRO_DQN'] == 'soft_rainbow':
           dqn = DQN(*soft_rainbow_models(sess,
@@ -91,12 +97,13 @@ def main():
                                   min_val=-1000, #-200
                                   max_val=1000, #200
                                   discount=discount, #0.99
-                                  expert = RandomMoveExpert()
+                                  expert = expert
                                  ))
       saver = ScheduledSaver(os.environ["RETRO_LOGDIR"] + "/checkpoints/")
       player = NStepPlayer(BatchedPlayer(env, dqn.online_net), 3)
       optimize = dqn.optimize(learning_rate=1e-4)
       sess.run(tf.global_variables_initializer())
+      expert.initialize()
       dqn.train(num_steps=1000000, # Make sure an exception arrives before we stop.
                 player=player,
                 replay_buffer=PrioritizedReplayBuffer(1000000, 0.5, 0.4, epsilon=0.1),

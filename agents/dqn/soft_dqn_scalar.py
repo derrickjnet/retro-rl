@@ -104,7 +104,7 @@ class ScalarQNetwork(TFQNetwork):
         feed = self.step_feed_dict(observations, states)
         values = self.session.run(self.step_values, feed_dict=feed)
         #BEGIN: discover
-        expert_action_probs = self.expert.step(observations)
+        expert_action_probs = self.expert.step(self.obs_vectorizer.to_vecs(observations))
         #END: discover
         #BEGIN: soft q learning
         total_steps = self.session.run(self.total_steps_incr_op)
