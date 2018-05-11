@@ -8,7 +8,7 @@ import itertools
 import numpy as np
 import tensorflow as tf
 
-def collect_policy_targets(root_path, game_act_name, start_step, stop_step, target_key, event_file_name, obs_steps=4):
+def collect_policy_targets(root_path, game_act_name, start_step, stop_step, event_file_name, obs_steps=4):
     print("ANALYZING: %s" % (root_path + "/" + game_act_name,))
     #event_file = gzip.open(event_file_name + ".temp", "wb")
     event_writer = tf.python_io.TFRecordWriter(event_file_name + ".temp")
@@ -21,6 +21,7 @@ def collect_policy_targets(root_path, game_act_name, start_step, stop_step, targ
     policy_total_steps = None
     policy_episode = None
     policy_episode_step = None
+    policy_logits =  None
     policy_targets = None
     policy_action = None
     for line in open(root_path + '/' + game_act_name + '/log', 'r'):
@@ -33,7 +34,10 @@ def collect_policy_targets(root_path, game_act_name, start_step, stop_step, targ
       if line.startswith("POLICY"):
         policy_total_steps = total_steps
         policy_action = int(key_values['action'])
-        policy_targets = eval(key_values[target_key])
+        policy_logits = key_values['action_values']
+        if policy_logits:
+          policy_logits = eval(policy_logits)
+        policy_targets = eval(key_values['action_probs'])
       elif line.startswith("STEP:"):
         episode = int(key_values['episode'])
         episode_step = int(key_values['episode_step'])
@@ -42,10 +46,10 @@ def collect_policy_targets(root_path, game_act_name, start_step, stop_step, targ
           assert obs_episode_step == episode_step - 1
           assert policy_action == action
           obs_arr = np.dstack(obs)
-          print("EVENT: game=%s act=%s total_steps=%s episode=%s episode_step=%s obs=%s targets=%s action=%s" % (game_name, act_name, total_steps, episode, episode_step, obs_arr.shape, policy_targets, policy_action))
+          print("EVENT: game=%s act=%s total_steps=%s episode=%s episode_step=%s obs=%s logits=%s targets=%s action=%s" % (game_name, act_name, total_steps, episode, episode_step, obs_arr.shape, policy_logits, policy_targets, policy_action))
           assert len(obs) == obs_steps
-          #event = { 'game_name' : game_name, 'act_name' : act_name, 'total_steps' : total_steps, 'episode' : episode, 'episode_step' : episode_step, 'obs' : obs_arr, 'targets' : policy_targets, 'action' : policy_action }
-          record = tf.train.Example(features=tf.train.Features(feature={
+          #event = { 'game_name' : game_name, 'act_name' : act_name, 'total_steps' : total_steps, 'episode' : episode, 'episode_step' : episode_step, 'obs' : obs_arr, 'logits' : policy_logits, 'targets' : policy_targets, 'action' : policy_action }
+          features = {
             'game_name' : tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(game_name)])),
             'act_name' : tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(act_name)])),
             'total_steps' : tf.train.Feature(int64_list=tf.train.Int64List(value=[total_steps])), 
@@ -55,7 +59,10 @@ def collect_policy_targets(root_path, game_act_name, start_step, stop_step, targ
             'obs_shape' : tf.train.Feature(int64_list=tf.train.Int64List(value=obs_arr.shape)),
             'targets' : tf.train.Feature(float_list=tf.train.FloatList(value=policy_targets)),
             'action' : tf.train.Feature(int64_list=tf.train.Int64List(value=[policy_action])) 
-          }))
+          }
+          if policy_logits:
+            features['logits'] =  tf.train.Feature(float_list=tf.train.FloatList(value=policy_logits))
+          record = tf.train.Example(features=tf.train.Features(feature=features))
           #cloudpickle.dump(event, event_file)
           event_writer.write(record.SerializeToString())
         step_data = cloudpickle.load(gzip.open(root_path + '/' + game_act_name + '/' + game_act_name + "-" + str(episode).zfill(4) + ".steps/" + str(episode) + "." + str(episode_step) + ".step.gz", 'rb'))
@@ -82,11 +89,11 @@ def collect_policy_targets(root_path, game_act_name, start_step, stop_step, targ
     event_writer.close()
     os.rename(event_file_name + ".temp", event_file_name)
 
-root_path, game_act_name, start_step, stop_step, target_key, event_path = (sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5], sys.argv[6])
+root_path, game_act_name, start_step, stop_step, event_path = (sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), sys.argv[5])
 
 #event_file_name = event_path + "/" + game_act_name + ".events.gz"
 event_file_name = event_path + "/" + game_act_name + ".events.tfrecords"
 if not os.path.exists(event_file_name):
-  collect_policy_targets(root_path, game_act_name, start_step, stop_step, target_key, event_file_name)
+  collect_policy_targets(root_path, game_act_name, start_step, stop_step, event_file_name)
 else:
   print("SKIPPING: game_act_name=%s" % (game_act_name,))
