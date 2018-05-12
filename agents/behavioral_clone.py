@@ -16,7 +16,7 @@ else:
   assert False
 
 def build_dataset(data_file_name):
-  return tf.data.TFRecordDataset(data_file_name).apply(tf.contrib.data.shuffle_and_repeat(10000)
+  return tf.data.TFRecordDataset(data_file_name).shuffle(10000).repeat()
 
 def parse_record(record_bytes, obs_steps=4, target_count=7):
   features = {
@@ -37,9 +37,9 @@ def parse_record(record_bytes, obs_steps=4, target_count=7):
   result = tf.parse_single_example(record_bytes, features) 
   obs = tf.reshape(tf.decode_raw(result['obs'], tf.uint8), [84,84,obs_steps])
   if clone_mode == 'policy':
-    return obs, result['targets']
+    return obs, result['action_probs']
   elif clone_mode == 'valuefun':
-    return obs, result['logits']
+    return obs, result['action_values']
   else:
     assert False
 
@@ -79,13 +79,13 @@ with tf.Session(config=config) as sess:
 
   global_step = tf.train.create_global_step()
 
-  if clone_mode == 'probs':
-    train_obs = mdoel.X
-    train_probs = tf.placeholder(tf.float32, [None, 7])
+  if clone_mode == 'policy':
+    train_obs = model.X
+    train_targets = tf.placeholder(tf.float32, [None, 7])
     model_logits = model.pd.logits
-    train_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=train_probs, logits=model_logits))
+    train_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=train_targets, logits=model_logits))
   elif clone_mode == 'valuefun': 
-    train_obs = tf.placeholder(tf.float32, [None, 84,84,4])
+    train_obs = tf.placeholder(tf.uint8, [None, 84,84,4])
     train_targets = tf.placeholder(tf.float32, [None, 7])
     model_values = model.value_func(model.base(train_obs))
     train_loss = tf.reduce_mean(tf.square(model_values - train_targets))
@@ -103,6 +103,8 @@ with tf.Session(config=config) as sess:
 
   while True:
     (batch_obs, batch_targets) = sess.run(batch_tensor)
+    if (batch_obs.shape[0] != 64):
+      continue
     train_loss_value, _, global_step_value = sess.run([train_loss, train_step, global_step], feed_dict={train_obs:batch_obs, train_targets:batch_targets})
     print("STEP: step=%s loss=%s" % (global_step_value, train_loss_value))
     sys.stdout.flush()
