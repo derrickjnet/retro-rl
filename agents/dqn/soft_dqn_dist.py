@@ -50,9 +50,9 @@ def rainbow_models(session,
                                   num_atoms, min_val, max_val, dueling=True,
                                   dense=partial(noisy_net_dense, sigma0=sigma0),
                                   discover_steps=discover_steps, cooling_steps=cooling_steps, start_temperature=start_temperature, stop_temperature=stop_temperature,
-                                  expert_prob=expert_prob if name == 'dqn_online' else None,
-                                  expert=expert if name == 'dqn_online' else None)
-    return maker('dqn_online'), maker('dqn_target'), discount
+                                  expert_prob=expert_prob if name == 'dqn_model' else None,
+                                  expert=expert if name == 'dqn_model' else None)
+    return maker('dqn_model'), maker('dqn_model_target'), discount
 
 
 class DistQNetwork(TFQNetwork):
