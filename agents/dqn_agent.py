@@ -23,7 +23,7 @@ from dqn.soft_dqn_scalar import noisy_net_models as soft_noisy_net_models
 from dqn.soft_dqn_dist import rainbow_models as soft_rainbow_models
 from sonic_util import AllowBacktracking,make_env
 from exploration.exploration_env import ExplorationEnv
-
+from exploration.state_encoder import StateEncoder
 
 class ScheduledSaver:
   def __init__(self, fname, save_steps=10000):
@@ -53,13 +53,19 @@ def main():
     print("DISCOUNT: %s" % (discount,))
 
     """Run DQN until the environment throws an exception."""
-    env = ExplorationEnv(AllowBacktracking(make_env(stack=False)))
-    env = BatchedFrameStack(BatchedGymEnv([[env]]), num_images=4, concat=False)
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
     config.log_device_placement=True
     with tf.Session(config=config) as sess:
       with tf.device(os.environ.get("RETRO_DEVICE", '/gpu:0')):
+        if 'RETRO_ENCODERDIR' in os.environ:
+          state_encoder = StateEncoder(sess, encoder_dir = os.environ['RETRO_ENCODERDIR'])
+        else:
+          state_encoder = None
+  
+        env = ExplorationEnv(AllowBacktracking(make_env(stack=False)), state_encoder=state_encoder)
+        env = BatchedFrameStack(BatchedGymEnv([[env]]), num_images=4, concat=False)
+
         if 'RETRO_POLICYDIR' in os.environ:
           expert = PolicyExpert(sess, batch_size=1, policy_dir=os.environ['RETRO_POLICYDIR'])
         else:
@@ -103,6 +109,7 @@ def main():
       player = NStepPlayer(BatchedPlayer(env, dqn.online_net), 3)
       optimize = dqn.optimize(learning_rate=1e-4)
       sess.run(tf.global_variables_initializer())
+      state_encoder.initialize()
       expert.initialize()
       dqn.train(num_steps=1000000, # Make sure an exception arrives before we stop.
                 player=player,

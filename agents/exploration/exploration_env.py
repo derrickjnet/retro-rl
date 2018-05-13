@@ -12,9 +12,10 @@ import cloudpickle
 import gzip
 
 class ExplorationEnv(gym.Wrapper):
-   def __init__(self, env, max_exploration_steps=None):
+   def __init__(self, env, max_exploration_steps=None, state_encoder=None):
      super(ExplorationEnv, self).__init__(env)
      self.max_exploration_steps = max_exploration_steps
+     self.state_encoder = state_encoder
      self.episode=None
      self.total_steps=0
      self.max_visited_x = None
@@ -56,15 +57,24 @@ class ExplorationEnv(gym.Wrapper):
        self.max_visited_x = max(self.max_visited_x, current_x)
      else:
        self.max_visited_x = current_x
+     if self.state_encoder is not None:
+       print("XXX1", datetime.datetime.now())
+       state_embedding = self.state_encoder.encode(obs)
+       print("XXX2", datetime.datetime.now())
+       state_encoding = tuple(map(lambda v: round(v), state_embedding))
+     else:
+       state_encoding = None
      cell_size = self.max_x / 10
      cell_x = int(current_x / cell_size)
      cell_y = int(current_y / cell_size)
-     cell_key = (cell_x, cell_y)
+     #cell_key = (cell_x, cell_y)
+     cell_key = state_encoding
      if cell_key not in self.visited:
        self.visited[cell_key] = 1
      else:
        self.visited[cell_key] += 1
-     extra_reward = math.sqrt(current_x**2 + current_y**2) * 9000.0 / self.max_x / (self.max_x / cell_size) / self.visited[cell_key]
+     #extra_reward = math.sqrt(current_x**2 + current_y**2) * 9000.0 / self.max_x / (self.max_x / cell_size) / self.visited[cell_key]
+     extra_reward = 10 * math.sqrt(current_x**2 + current_y**2) / self.max_x / self.visited[cell_key]
      if self.max_exploration_steps != None:
        extra_reward *= max(0, self.max_exploration_steps - self.total_steps) / float(self.max_exploration_steps)
      self.total_steps += 1
@@ -73,6 +83,7 @@ class ExplorationEnv(gym.Wrapper):
      self.total_extra_reward += extra_reward
      timestamp = datetime.datetime.now()
      print("STEP: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s action=%s reward=%s extra_reward=%s info=%s" % (timestamp, self.get_movie_id(), self.total_steps, self.episode, self.episode_step, action, reward, extra_reward, info))
+     print("CELL: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s visit=%s cell=%s embedding=%s" % (timestamp, self.get_movie_id(), self.total_steps, self.episode, self.episode_step, self.visited[cell_key], cell_key, list(state_embedding)))
      sys.stdout.flush()
      if 'RETRO_RECORD' in os.environ:
        record = {
@@ -102,5 +113,6 @@ class ExplorationEnv(gym.Wrapper):
 
      self.last_obs = obs
      self.last_info = info
-     return obs, reward + extra_reward, done, info
+     #return obs, reward + extra_reward, done, info
+     return obs, extra_reward, done, info
 

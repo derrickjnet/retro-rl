@@ -31,15 +31,20 @@ def main():
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
     with tf.Session(config=config) as sess:
-        if "RETRO_INITDIR" in os.environ:
-          def init_fun():
+        if 'RETRO_ENCODERDIR' in os.environ:
+          state_encoder = StateEncoder(sess, encoder_dir = os.environ['RETRO_ENCODERDIR'])
+        else:
+          state_encoder = None
+
+        def init_fun():
+          if state_encoder != None:
+            state_encoder.initialize()
+          if "RETRO_INITDIR" in os.environ:
             saver = tf.train.Saver(var_list=tf.trainable_variables('ppo2_model'))
             latest_checkpoint = tf.train.latest_checkpoint(os.environ['RETRO_INITDIR'])
             print("LOAD_INIT_CHECKPOINT: %s" % (latest_checkpoint,))
             if latest_checkpoint is not None:
               saver.restore(sess, latest_checkpoint)
-        else:
-          init_fun = None 
 
         # Take more timesteps than we need to be sure that
         # we stop due to an exception.
