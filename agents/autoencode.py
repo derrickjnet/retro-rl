@@ -5,9 +5,6 @@ import tensorflow as tf
 import time
 from exploration.autoencoder import encoder_rescaled, decoder
 
-def build_dataset(data_file_name):
-  return tf.data.TFRecordDataset(data_file_name).apply(tf.contrib.data.shuffle_and_repeat(10000))
-
 def parse_record(record_bytes, obs_steps=4):
   features = {
             'game_name' : tf.FixedLenFeature((), tf.string),
@@ -22,7 +19,7 @@ def parse_record(record_bytes, obs_steps=4):
   return (obs,)
 
 def build_combined_dataset(events_path):
-  return tf.data.Dataset.list_files(events_path + "*.events.tfrecords").apply(tf.contrib.data.parallel_interleave(tf.data.TFRecordDataset, cycle_length=100, block_length=1)).map(parse_record, num_parallel_calls=10).batch(64).prefetch(1)
+  return tf.data.Dataset.list_files(events_path + "*.events.tfrecords").apply(tf.contrib.data.parallel_interleave(tf.data.TFRecordDataset, cycle_length=100, block_length=1)).map(parse_record, num_parallel_calls=10).shuffle(10000).repeat().batch(64).prefetch(1)
 
 events_path = sys.argv[1]
 output_path = sys.argv[2]

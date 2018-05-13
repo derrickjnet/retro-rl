@@ -15,9 +15,6 @@ elif os.environ['RETRO_CLONE'] == 'valuefun':
 else:
   assert False
 
-def build_dataset(data_file_name):
-  return tf.data.TFRecordDataset(data_file_name).shuffle(10000).repeat()
-
 def parse_record(record_bytes, obs_steps=4, target_count=7):
   features = {
             'game_name' : tf.FixedLenFeature((), tf.string),
@@ -44,7 +41,7 @@ def parse_record(record_bytes, obs_steps=4, target_count=7):
     assert False
 
 def build_combined_dataset(events_path):
-  return tf.data.Dataset.list_files(events_path + "*.events.tfrecords").apply(tf.contrib.data.parallel_interleave(tf.data.TFRecordDataset, cycle_length=100, block_length=1)).map(parse_record, num_parallel_calls=10).batch(64).prefetch(1)
+  return tf.data.Dataset.list_files(events_path + "*.events.tfrecords").apply(tf.contrib.data.parallel_interleave(tf.data.TFRecordDataset, cycle_length=100, block_length=1)).map(parse_record, num_parallel_calls=10).shuffle(10000).repeat().batch(64).prefetch(1)
 
 events_path = sys.argv[1]
 output_path = sys.argv[2]
