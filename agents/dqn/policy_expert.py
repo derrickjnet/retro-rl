@@ -18,8 +18,7 @@ class PolicyExpert:
      saver = tf.train.Saver(var_list=tf.trainable_variables('ppo2_model'))
      latest_checkpoint = tf.train.latest_checkpoint(self.policy_dir)
      print("LOAD_POLICY_CHECKPOINT: %s" % (latest_checkpoint,))
-     if latest_checkpoint is not None:
-       saver.restore(self.session, latest_checkpoint)
+     saver.restore(self.session, latest_checkpoint)
 
   def reset(self, num_actions, batch_size):
     assert num_actions == 7

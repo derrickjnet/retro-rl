@@ -46,7 +46,7 @@ with tf.Session(config=config) as sess:
   reconstruction_loss = tf.reduce_mean(tf.reduce_sum(tf.square(model_rescaled_inputs - model_outputs),[1,2,3]))
   #model_embeddings_clipped = tf.minimum(tf.maximum(model_embeddings,0.01),0.99)
   #embedding_loss = tf.reduce_mean(-tf.reduce_sum(model_embeddings_clipped*tf.log(model_embeddings_clipped) + (1.0-model_embeddings_clipped)*tf.log(1.0-model_embeddings_clipped), [1]))
-  embedding_loss = tf.reduce_mean(tf.reduce_sum(tf.minimum((1-model_embeddings)**2, model_embeddings**2), [1]))
+  embedding_loss = tf.reduce_mean(tf.reduce_mean(tf.minimum((1-model_embeddings)**2, model_embeddings**2), [1]))
   train_loss = reconstruction_loss #+ embedding_loss
   #train_loss = tf.reduce_mean(tf.reduce_sum(tf.square(model_rescaled_inputs - model_outputs), [1,2,3]))
 
