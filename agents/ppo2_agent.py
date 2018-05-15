@@ -15,8 +15,9 @@ import ppo2.policies as policies
 import baselines.logger as logger
 import gym_remote.exceptions as gre
 
+from exploration.state_encoder import StateEncoder
 from exploration.exploration_env import ExplorationEnv
-from sonic_util import RewardScaler,AllowBacktracking,make_env
+from sonic_util import RewardScaler,make_env
 
 def main():
     discount = os.environ.get('RETRO_DISCOUNT')
@@ -48,7 +49,7 @@ def main():
         # Take more timesteps than we need to be sure that
         # we stop due to an exception.
         ppo2.learn(policy=policies.CnnPolicy,
-                   env=DummyVecEnv([lambda: RewardScaler(ExplorationEnv(AllowBacktracking(make_env())))]),
+                   env=DummyVecEnv([lambda: RewardScaler(ExplorationEnv(make_env(), state_encoder=state_encoder))]),
                    nsteps=4096,
                    nminibatches=8,
                    lam=0.95,

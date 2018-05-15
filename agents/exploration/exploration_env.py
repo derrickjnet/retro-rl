@@ -18,11 +18,11 @@ class ExplorationEnv(gym.Wrapper):
      self.state_encoder = state_encoder
      self.episode=None
      self.total_steps=0
-     self.max_visited_x = None
-     self.max_x = None
      self.episode_step = 0
      self.total_reward = 0
+     self.total_adjusted_reward = 0
      self.total_extra_reward = 0
+     self.global_visited = dict()
  
    def get_movie_id(self):
      env = self.env
@@ -31,59 +31,48 @@ class ExplorationEnv(gym.Wrapper):
      return env.movie_id - 1
 
    def reset(self):
-     print("EPISODE: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s max_visisted_x=%s max_x=%s total_reward=%s total_extra_reward=%s" % (datetime.datetime.now(), self.get_movie_id(), self.total_steps, self.episode, self.episode_step, self.max_visited_x, self.max_x, self.total_reward, self.total_extra_reward))
+     print("EPISODE: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s total_reward=%s total_adjusted_reward=%s total_extra_reward=%s" % (datetime.datetime.now(), self.get_movie_id(), self.total_steps, self.episode, self.episode_step, self.total_reward, self.total_adjusted_reward, self.total_extra_reward))
      sys.stdout.flush()
      if self.episode is None:
        self.episode = 0
      else:
        self.episode += 1
-     self.max_visited_x = None
-     self.max_x = None
      self.visited = dict()
      self.episode_step = 0
      self.total_reward = 0
+     self.total_adjusted_reward = 0
      self.total_extra_reward = 0
      self.last_obs = None
      self.last_info = None
      return super().reset()
 
    def step(self, action): 
+     self.episode_step += 1
+     self.total_steps += 1
      obs, reward, done, info = super().step(action) 
-     if self.max_x is None:
-       self.max_x = info['screen_x_end']
-     current_x = info['x']
-     current_y = info['y']
-     if self.max_visited_x is not None: 
-       self.max_visited_x = max(self.max_visited_x, current_x)
-     else:
-       self.max_visited_x = current_x
+     self.total_reward += reward
+     adjusted_reward = max(0, self.total_reward - self.total_adjusted_reward)
+     self.total_adjusted_reward = max(self.total_adjusted_reward, self.total_reward)
      if self.state_encoder is not None:
-       print("XXX1", datetime.datetime.now())
-       state_embedding = self.state_encoder.encode(obs)
-       print("XXX2", datetime.datetime.now())
+       state_embedding_start = datetime.datetime.now()
+       state_embedding = list(self.state_encoder.encode(obs))
+       print("STATE_EMBEDDING: runtime=%s sec" % ((datetime.datetime.now() - state_embedding_start).total_seconds(),))
        state_encoding = tuple(map(lambda v: round(v), state_embedding))
      else:
-       state_encoding = None
-     cell_size = self.max_x / 100.0
-     cell_x = int(current_x / cell_size)
-     cell_y = int(current_y / cell_size)
-     #cell_key = (cell_x, cell_y)
-     cell_key = (cell_x, state_encoding)
-     if cell_key not in self.visited:
-       self.visited[cell_key] = 1
-     else:
-       self.visited[cell_key] += 1
-     #extra_reward = math.sqrt(current_x**2 + current_y**2) * 9000.0 / self.max_x / (self.max_x / cell_size) / self.visited[cell_key]
-     extra_reward = 10 * math.sqrt(current_x**2 + current_y**2) / self.max_x / self.visited[cell_key]
+       state_embedding = [int(info['y']/100.0)]
+       state_encoding = state_embedding
+     cell_key = (int(self.total_reward/100), state_encoding)
+     self.visited[cell_key] = self.visited.get(cell_key, 0) + 1
+     self.global_visited[cell_key] = self.global_visited.get(cell_key, 0) + 1
+     extra_reward = 0.0
+     extra_reward += 10 * self.total_reward / 9000.0 / self.visited[cell_key]
+     #extra_reward += 10 * self.total_reward / 9000.0 / math.sqrt(self.global_visited[cell_key])
      if self.max_exploration_steps != None:
        extra_reward *= max(0, self.max_exploration_steps - self.total_steps) / float(self.max_exploration_steps)
-     self.total_steps += 1
-     self.episode_step += 1
-     self.total_reward += reward
      self.total_extra_reward += extra_reward
      timestamp = datetime.datetime.now()
-     print("CELL: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s visit=%s cell=%s embedding=%s" % (timestamp, self.get_movie_id(), self.total_steps, self.episode, self.episode_step, self.visited[cell_key], cell_key, list(state_embedding)))
-     print("STEP: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s action=%s reward=%s extra_reward=%s current_reward=%s current_extra_reward=%s info=%s" % (timestamp, self.get_movie_id(), self.total_steps, self.episode, self.episode_step, action, reward, extra_reward, self.total_reward, self.total_extra_reward, info))
+     print("CELL: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s visited=%s global_visited=%s cell=%s embedding=%s" % (timestamp, self.get_movie_id(), self.total_steps, self.episode, self.episode_step, self.visited[cell_key], self.global_visited[cell_key], cell_key, state_embedding))
+     print("STEP: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s action=%s reward=%s adjusted_reward=%s extra_reward=%s current_reward=%s current_adjusted_reward=%s current_extra_reward=%s info=%s" % (timestamp, self.get_movie_id(), self.total_steps, self.episode, self.episode_step, action, reward, adjusted_reward, extra_reward, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, info))
      sys.stdout.flush()
      if 'RETRO_RECORD' in os.environ:
        record = {
@@ -97,10 +86,12 @@ class ExplorationEnv(gym.Wrapper):
          'action' : action,
          'obs' : obs,
          'reward' : reward,
-         'done' : done,
+         'adjusted_reward' : adjusted_reward,
          'extra_reward' : extra_reward,
+         'done' : done,
          'info' : info,
          'total_reward' : self.total_reward,
+         'total_adjusted_reward' : self.total_adjusted_reward,
          'total_extra_reward' : self.total_extra_reward
        }
        record_dir_name = os.environ['RETRO_RECORD'] + "/" + os.environ['RETRO_GAME'] + "-" + os.environ['RETRO_STATE'] + "-" + str(self.get_movie_id()).zfill(4) + ".steps/"
@@ -113,6 +104,5 @@ class ExplorationEnv(gym.Wrapper):
 
      self.last_obs = obs
      self.last_info = info
-     return obs, reward + extra_reward, done, info
-     #return obs, extra_reward, done, info
+     return obs, adjusted_reward + extra_reward, done, info
 
