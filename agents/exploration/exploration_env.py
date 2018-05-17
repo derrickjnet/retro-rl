@@ -75,21 +75,26 @@ class ExplorationEnv(gym.Wrapper):
      self.global_visited[cell_key] = self.global_visited.get(cell_key, 0) + 1
 
      relative_x = self.total_reward / 9000.0
-     relative_y = info.get('y', 0.0) / info.get('screen_x_end',1.0)
 
-     extra_reward_weight = 10.0 * math.sqrt(relative_x**2 + relative_y**2)
+     if 'y' in info:
+       relative_y = info['y'] / info.get('screen_x_end',1.0)
+       exploration_reward_weight = 10.0 * math.sqrt(relative_x**2 + relative_y**2)
+     else:
+       relative_y = None
+       exploration_reward_weight = 10.0 * relative_x
 
-     extra_local_reward = extra_reward_weight / self.local_visited[cell_key]
-     extra_global_reward = extra_reward_weight / math.sqrt(self.global_visited[cell_key])
-   
+     exploration_local_reward = exploration_reward_weight / self.local_visited[cell_key]
+     exploration_global_reward = exploration_reward_weight / math.sqrt(self.global_visited[cell_key])
+  
+     exploration_rings_weight = 0 
      if 'rings' in info:
        new_episode_rings = info.get('rings',0)
-       extra_rings_reward = 1000.0 * max(0, new_episode_rings - self.episode_rings)
+       extra_rings_reward = exploration_rings_weight * max(0, new_episode_rings - self.episode_rings)
        self.episode_rings = new_episode_rings
      else:
        extra_rings_reward = 0.0
 
-     extra_reward = extra_local_reward + extra_global_reward + extra_rings_reward
+     extra_reward = exploration_local_reward + exploration_global_reward + extra_rings_reward
      if self.max_exploration_steps != None:
        extra_reward_scale = max(0, self.max_exploration_steps - self.total_steps) / float(self.max_exploration_steps)
      else:
@@ -98,7 +103,7 @@ class ExplorationEnv(gym.Wrapper):
      self.total_extra_reward += extra_reward_scale * extra_reward
 
      timestamp = datetime.datetime.now()
-     print("EXPLORE: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s local_visited=%s global_visited=%s extra_reward_weight=%s extra_reward_scale=%s extra_local_reward=%s extra_global_reward=%s extra_rings_reward=%s relative_x=%s relative_y=%s cell=%s embedding=%s" % (timestamp, self.get_movie_id(), self.total_steps, self.episode, self.episode_step, self.local_visited[cell_key], self.global_visited[cell_key], extra_reward_weight, extra_reward_scale, extra_local_reward, extra_global_reward, extra_rings_reward, relative_x, relative_y, cell_key, state_embedding))
+     print("EXPLORE: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s local_visited=%s global_visited=%s exploration_reward_weight=%s extra_reward_scale=%s exploration_local_reward=%s exploration_global_reward=%s extra_rings_reward=%s relative_x=%s relative_y=%s cell=%s embedding=%s" % (timestamp, self.get_movie_id(), self.total_steps, self.episode, self.episode_step, self.local_visited[cell_key], self.global_visited[cell_key], exploration_reward_weight, extra_reward_scale, exploration_local_reward, exploration_global_reward, extra_rings_reward, relative_x, relative_y, cell_key, state_embedding))
      print("STEP: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s action=%s reward=%s adjusted_reward=%s extra_reward=%s current_reward=%s current_adjusted_reward=%s current_extra_reward=%s info=%s" % (timestamp, self.get_movie_id(), self.total_steps, self.episode, self.episode_step, action, reward, adjusted_reward, extra_reward, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, info))
      sys.stdout.flush()
 
