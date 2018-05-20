@@ -28,12 +28,14 @@ def worker(remote, parent_remote, env_fn_wrapper):
 
 
 class SubprocessVecEnv(VecEnv):
-    def __init__(self, env_specs, spaces=None):
+    def __init__(self, env_specs, auto_reset=True, spaces=None):
         """
         envs: list of gym environments to run in subprocesses
         """
-        self.env_ids, env_fns = unzip(env_specs)
-        self.waiting = False
+        self.env_ids, env_fns = zip(*env_specs)
+        assert len(set(self.env_ids)) == len(self.env_ids)
+        self.auto_reset = auto_reset
+        self.actions = None
         self.closed = False
         nenvs = len(env_fns)
         self.remotes, self.work_remotes = zip(*[Pipe() for _ in range(nenvs)])
@@ -49,18 +51,23 @@ class SubprocessVecEnv(VecEnv):
         observation_space, action_space = self.remotes[0].recv()
         VecEnv.__init__(self, len(env_fns), observation_space, action_space)
 
-    def step(self, actions):
-        self.step_async(actions)
-        return self.step_wait()
-
     def step_async(self, actions):
+        assert self.actions is None
+        self.actions = actions
         for remote, action in zip(self.remotes, actions):
             remote.send(('step', action))
 
     def step_wait(self):
+        assert self.actions is not None
         results = [remote.recv() for remote in self.remotes]
-        obs, rews, dones, infos = zip(*results)
-        return np.stack(obs), np.stack(rews), np.stack(dones), infos
+        obses, rews, dones, infos = zip(*results)
+        obses = list(obses)
+        for env_idx in range(self.num_envs):
+          if dones[env_idx] and self.auto_reset:
+            self.remotes[env_idx].send(('reset', None))
+            obses[env_idx] = self.remotes[env_idx].recv()
+        self.actions = None
+        return np.stack(obses), np.stack(rews), np.stack(dones), infos
 
     def reset(self):
         for remote in self.remotes:

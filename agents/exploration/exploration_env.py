@@ -61,7 +61,7 @@ class ExplorationEnv(gym.Wrapper):
 
      if self.state_encoder is not None:
        state_embedding_start = datetime.datetime.now()
-       state_embedding = list(self.state_encoder.encode(np.expand_dims(np.expand_dims(obs[:,:,-1],0),-1)))[0]
+       state_embedding = list(self.state_encoder.encode(np.expand_dims(np.expand_dims(obs[:,:,-1],-1),0)))[0]
        print("STATE_EMBEDDING: runtime=%s sec" % ((datetime.datetime.now() - state_embedding_start).total_seconds(),))
        state_encoding = tuple(map(lambda v: round(v), state_embedding))
      else:

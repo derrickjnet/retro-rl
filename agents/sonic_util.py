@@ -2,13 +2,16 @@
 Environments and wrappers for Sonic training.
 """
 
-import gym
 import numpy as np
+import os
 
-from baselines.common.atari_wrappers import WarpFrame, FrameStack
+import gym
 import gym_remote.client as grc
 
-import os
+from baselines.common.atari_wrappers import WarpFrame, FrameStack
+
+from vec_env.dummy_vec_env import DummyVecEnv
+from vec_env.subprocess_vec_env import SubprocessVecEnv
 
 def make_vec_env(stack=True, extra_wrap_fn=None):
     def wrap_env(env):
@@ -16,7 +19,7 @@ def make_vec_env(stack=True, extra_wrap_fn=None):
       env = WarpFrame(env)
       if stack:
         env = FrameStack(env, 4)
-      if extra_frap_fn is not None:
+      if extra_wrap_fn is not None:
         env = extra_wrap_fn(env)
       return env
  
@@ -64,26 +67,3 @@ class RewardScaler(gym.RewardWrapper):
     def reward(self, reward):
         return reward * 0.01
 
-class AllowBacktracking(gym.Wrapper):
-    """
-    Use deltas in max(X) as the reward, rather than deltas
-    in X. This way, agents are not discouraged too heavily
-    from exploring backwards if there is no way to advance
-    head-on in the level.
-    """
-    def __init__(self, env):
-        super(AllowBacktracking, self).__init__(env)
-        self._cur_x = 0
-        self._max_x = 0
-
-    def reset(self, **kwargs): # pylint: disable=E0202
-        self._cur_x = 0
-        self._max_x = 0
-        return self.env.reset(**kwargs)
-
-    def step(self, action): # pylint: disable=E0202
-        obs, reward, done, info = self.env.step(action)
-        self._cur_x += reward
-        reward = max(0, self._cur_x - self._max_x)
-        self._max_x = max(self._max_x, self._cur_x)
-        return obs, reward, done, info

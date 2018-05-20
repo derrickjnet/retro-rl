@@ -7,7 +7,6 @@ Train an agent on Sonic using PPO2 from OpenAI Baselines.
 import os
 import tensorflow as tf
 
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 import ppo2.ppo2 as ppo2
 #import baselines.ppo2.ppo2 as ppo2
 import ppo2.policies as policies
@@ -15,11 +14,11 @@ import ppo2.policies as policies
 import baselines.logger as logger
 import gym_remote.exceptions as gre
 
-from subprocess_vec_env import SubprocessVecEnv
+from vec_env.reward_scaling_vec_env import RewardScalingVecEnv
 from exploration.exploration_vec_env import ExplorationVecEnv
 from exploration.exploration import Exploration
 from exploration.state_encoder import StateEncoder
-from sonic_util import RewardScaler,make_vec_env
+from sonic_util import make_vec_env
 
 def main():
     discount = os.environ.get('RETRO_DISCOUNT')
@@ -29,7 +28,7 @@ def main():
       discount=0.99
     print("DISCOUNT: %s" % (discount,))
 
-    env = make_vec_env(extra_wrap_fn = lambda env: RewardScaler(env)])
+    vec_env = make_vec_env()
 
     """Run PPO until the environment throws an exception."""
     logger.configure(dir=os.environ.get('RETRO_LOGDIR'))
@@ -53,7 +52,7 @@ def main():
         # Take more timesteps than we need to be sure that
         # we stop due to an exception.
         ppo2.learn(policy=policies.CnnPolicy,
-                   env=ExplorationVecEnv(env, lambda env_id: Exploration(env_id), state_encoder=state_encoder),
+                   env=RewardScalingVecEnv(ExplorationVecEnv(vec_env, lambda env_id: Exploration(env_id), state_encoder=state_encoder), reward_scale = 0.01),
                    nsteps=4096,
                    nminibatches=8,
                    lam=0.95,
