@@ -2,7 +2,6 @@ import numpy as np
 from multiprocessing import Process, Pipe
 from baselines.common.vec_env import VecEnv, CloudpickleWrapper
 
-
 def worker(remote, parent_remote, env_fn_wrapper):
     parent_remote.close()
     env = env_fn_wrapper.x()
@@ -28,11 +27,12 @@ def worker(remote, parent_remote, env_fn_wrapper):
             raise NotImplementedError
 
 
-class SubprocVecEnv(VecEnv):
-    def __init__(self, env_fns, spaces=None):
+class SubprocessVecEnv(VecEnv):
+    def __init__(self, env_specs, spaces=None):
         """
         envs: list of gym environments to run in subprocesses
         """
+        self.env_ids, env_fns = unzip(env_specs)
         self.waiting = False
         self.closed = False
         nenvs = len(env_fns)
@@ -50,8 +50,14 @@ class SubprocVecEnv(VecEnv):
         VecEnv.__init__(self, len(env_fns), observation_space, action_space)
 
     def step(self, actions):
+        self.step_async(actions)
+        return self.step_wait()
+
+    def step_async(self, actions):
         for remote, action in zip(self.remotes, actions):
             remote.send(('step', action))
+
+    def step_wait(self):
         results = [remote.recv() for remote in self.remotes]
         obs, rews, dones, infos = zip(*results)
         return np.stack(obs), np.stack(rews), np.stack(dones), infos

@@ -15,9 +15,11 @@ import ppo2.policies as policies
 import baselines.logger as logger
 import gym_remote.exceptions as gre
 
+from subprocess_vec_env import SubprocessVecEnv
+from exploration.exploration_vec_env import ExplorationVecEnv
+from exploration.exploration import Exploration
 from exploration.state_encoder import StateEncoder
-from exploration.exploration_env import ExplorationEnv
-from sonic_util import RewardScaler,make_env
+from sonic_util import RewardScaler,make_vec_env
 
 def main():
     discount = os.environ.get('RETRO_DISCOUNT')
@@ -26,6 +28,8 @@ def main():
     else:
       discount=0.99
     print("DISCOUNT: %s" % (discount,))
+
+    env = make_vec_env(extra_wrap_fn = lambda env: RewardScaler(env)])
 
     """Run PPO until the environment throws an exception."""
     logger.configure(dir=os.environ.get('RETRO_LOGDIR'))
@@ -49,7 +53,7 @@ def main():
         # Take more timesteps than we need to be sure that
         # we stop due to an exception.
         ppo2.learn(policy=policies.CnnPolicy,
-                   env=DummyVecEnv([lambda: RewardScaler(ExplorationEnv(make_env(), state_encoder=state_encoder))]),
+                   env=ExplorationVecEnv(env, lambda env_id: Exploration(env_id), state_encoder=state_encoder),
                    nsteps=4096,
                    nminibatches=8,
                    lam=0.95,

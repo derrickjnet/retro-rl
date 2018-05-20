@@ -10,24 +10,28 @@ import gym_remote.client as grc
 
 import os
 
-def get_env():
+def make_vec_env(stack=True, extra_wrap_fn=None):
+    def wrap_env(env):
+      env = SonicDiscretizer(env)
+      env = WarpFrame(env)
+      if stack:
+        env = FrameStack(env, 4)
+      if extra_frap_fn is not None:
+        env = extra_wrap_fn(env)
+      return env
+ 
     if 'RETRO_RECORD' in os.environ:
       from retro_contest.local import make
-      env = make(game=os.environ['RETRO_GAME'], state=os.environ['RETRO_STATE'], bk2dir=os.environ['RETRO_RECORD'])
+      record_dir=os.environ['RETRO_RECORD']
+      def prepare_env(game, state):
+        bk2dir = record_dir + "/" + game + "-" + state
+        os.mkdir(bk2dir)
+        return wrap_env(make(game=game, state=state, bk2dir=bk2dir))
+      game=os.environ['RETRO_GAME']
+      state=os.environ['RETRO_STATE']
+      return SubprocessVecEnv([(game + "-" + state, lambda: prepare_env(game, state))])
     else:
-      env = grc.RemoteEnv('tmp/sock')
-    return env
-
-def make_env(stack=True):
-    """
-    Create an environment with some standard wrappers.
-    """
-    env = get_env()
-    env = SonicDiscretizer(env)
-    env = WarpFrame(env)
-    if stack:
-        env = FrameStack(env, 4)
-    return env
+      return DummyVecEnv([('tmp/sock', lambda: wrap_env(grc.RemoteEnv('tmp/sock')))])
 
 class SonicDiscretizer(gym.ActionWrapper):
     """
