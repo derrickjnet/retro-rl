@@ -107,7 +107,7 @@ class ExplorationEnv(gym.Wrapper):
      print("STEP: timestamp=%s movie_id=%s total_steps=%s episode=%s episode_step=%s action=%s reward=%s adjusted_reward=%s extra_reward=%s current_reward=%s current_adjusted_reward=%s current_extra_reward=%s info=%s" % (timestamp, self.get_movie_id(), self.total_steps, self.episode, self.episode_step, action, reward, adjusted_reward, extra_reward, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, info))
      sys.stdout.flush()
 
-     if 'RETRO_RECORD' in os.environ:
+     if False and 'RETRO_RECORD' in os.environ:
        record = {
          'timestamp' : timestamp,
          'movie_id' : self.get_movie_id(),

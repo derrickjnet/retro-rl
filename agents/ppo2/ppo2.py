@@ -14,7 +14,7 @@ from baselines.common.runners import AbstractEnvRunner
 class Model(object):
     def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
                  nsteps, ent_coef, vf_coef, max_grad_norm, 
-                 exploration_steps=100000, 
+                 discover_steps=100000, 
                  cooling_steps=100000,
                  start_temperature=10.0,
                  stop_temperature=0.01
@@ -27,9 +27,9 @@ class Model(object):
           self.total_steps_var = tf.Variable(name="total_steps", dtype=tf.int64, initial_value=tf.constant(0,dtype=tf.int64), trainable=False) 
           self.total_steps_incr_op = tf.assign_add(self.total_steps_var, 1)
           self.temperature = tf.cond(
-                                self.total_steps_var <= exploration_steps,
-                                lambda: tf.maximum(1.0, start_temperature*(1.0-tf.cast(self.total_steps_var, tf.float32) / tf.cast(exploration_steps, tf.float32))),
-                                lambda: tf.maximum(stop_temperature, 1*(1.0-tf.cast(self.total_steps_var - exploration_steps,tf.float32) / tf.cast(cooling_steps, tf.float32)))
+                                self.total_steps_var <= discover_steps,
+                                lambda: tf.maximum(1.0, start_temperature*(1.0-tf.cast(self.total_steps_var, tf.float32) / tf.maximum(1.0,tf.cast(discover_steps, tf.float32)))),
+                                lambda: tf.maximum(stop_temperature, 1*(1.0-tf.cast(self.total_steps_var - discover_steps,tf.float32) / tf.maximum(1.0,tf.cast(cooling_steps, tf.float32))))
                               )
         #END: entropy regularization
 

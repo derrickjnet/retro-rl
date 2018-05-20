@@ -72,8 +72,8 @@ class ScalarQNetwork(TFQNetwork):
             #BEGIN: soft q learning
             self.temperature = tf.cond(
                                 self.total_steps_var <= discover_steps,
-                                lambda: tf.maximum(1.0, start_temperature*(1.0-tf.cast(self.total_steps_var, tf.float32) / tf.cast(discover_steps, tf.float32))),
-                                lambda: tf.maximum(stop_temperature, 1*(1.0-tf.cast(self.total_steps_var - discover_steps,tf.float32) / tf.cast(cooling_steps, tf.float32)))
+                                lambda: tf.maximum(1.0, start_temperature*(1.0-tf.cast(self.total_steps_var, tf.float32) / tf.maximum(1.0,tf.cast(discover_steps, tf.float32)))),
+                                lambda: tf.maximum(stop_temperature, 1*(1.0-tf.cast(self.total_steps_var - discover_steps,tf.float32) / tf.maximum(1.0,tf.cast(cooling_steps, tf.float32))))
                               )
             #END: soft q learning
             self.step_obs_ph = tf.placeholder(self.input_dtype,
@@ -116,9 +116,9 @@ class ScalarQNetwork(TFQNetwork):
           #BEGIN: discover
           if self.expert is not None:
             expert_flag = states[1][env_idx]
-            if not expert_flag and random.random() > (1 - self.expert_prob) + self.expert_prob * min(1.0, float(total_steps) / self.discover_steps):
+            if not expert_flag and random.random() > (1 - self.expert_prob) + self.expert_prob * min(1.0, float(total_steps) / max(1.0,self.discover_steps)):
                expert_flag = True
-            elif expert_flag and random.random() > 1 - self.expert_prob * min(1.0, float(total_steps) / self.discover_steps):
+            elif expert_flag and random.random() > 1 - self.expert_prob * min(1.0, float(total_steps) / max(1.0,self.discover_steps)):
                expert_flag = False
             states[1][env_idx] = expert_flag
             if expert_flag:
