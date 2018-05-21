@@ -2,11 +2,13 @@ import numpy as np
 from baselines.common.vec_env import VecEnv
 
 class ExplorationVecEnv(VecEnv):
-    def __init__(self, vecenv, exploration_f, state_encoder=None):
+    def __init__(self, vecenv, exploration_f, state_encoder=None, record_root_dir=os.environ['RETRO_RECORD']):
         VecEnv.__init__(self, vecenv.num_envs, vecenv.observation_space, vecenv.action_space)
         self.vecenv = vecenv
         self.state_encoder = state_encoder
-        self.explorations = [ exploration_f(vecenv.env_ids[env_idx]) for env_idx in range(0, self.num_envs) ]
+        self.record_dirs = [ self.record_root_dir + "/" + vecenv.env_ids[env_idx] for env_idx in range(self.num_envs) ]
+        self.log_files = [ open(self.record_dirs[env_idx] + "/log", "w") for env_idx in range(self.num_envs) ]
+        self.explorations = [ exploration_f(vecenv.env_ids[env_idx], log_file=self.log_files[env_idx], save_state_dir=self.record_dirs[env_idx]) for env_idx in range(self.num_envs) ]
         self.actions = None   
 
     def action_metas(self, action_metas):
@@ -43,5 +45,6 @@ class ExplorationVecEnv(VecEnv):
     def close(self):
         for env_idx in range(self.num_envs):
           self.explorations[env_idx].close()
+          self.log_files[env_idx].close()
         self.vecenv.close()
 

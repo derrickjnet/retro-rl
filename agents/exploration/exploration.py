@@ -12,11 +12,10 @@ import cloudpickle
 import gzip
 
 class Exploration:
-   def __init__(self, env_id, allow_backtracking=True, max_exploration_steps=None, record_dir=os.environ.get('RETRO_RECORD'), save_steps=False):
+   def __init__(self, env_id, allow_backtracking=True, max_exploration_steps=None, log_file=sys.stdout, save_step_dir=None):
      self.env_id = env_id 
-     self.record_dir = record_dir
-     self.save_steps = save_steps
-     self.log_file = open(self.record_dir + "/" + self.env_id  + "/log", "w")
+     self.log_file = log_file
+     self.save_step_dir = save_step_dir
      self.allow_backtracking = True
      self.max_exploration_steps = max_exploration_steps
      self.episode=None
@@ -106,7 +105,7 @@ class Exploration:
      print("STEP: timestamp=%s total_steps=%s episode=%s episode_step=%s action=%s reward=%s adjusted_reward=%s extra_reward=%s current_reward=%s current_adjusted_reward=%s current_extra_reward=%s info=%s" % (timestamp, self.total_steps, self.episode, self.episode_step, action, reward, adjusted_reward, extra_reward, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, info), file=self.log_file)
      sys.stdout.flush()
 
-     if self.save_steps and self.record_dir is not None:
+     if self.save_step_dir is not None:
        record = {
          'timestamp' : timestamp,
          'env_id' : self.env_id,
@@ -126,17 +125,17 @@ class Exploration:
          'total_adjusted_reward' : self.total_adjusted_reward,
          'total_extra_reward' : self.total_extra_reward
        }
-       record_dir_name = self.record_dir + "/" + self.env_id + "/" + self.env_id + "-" + str(self.episode).zfill(4) + ".steps/"
+       save_step_dir_name = self.save_step_dir + "/" + self.env_id + "-" + str(self.episode).zfill(4) + ".steps/"
        if self.episode_step == 1: 
-         os.mkdir(record_dir_name) 
-       record_file_name = record_dir_name + str(self.episode) + "." + str(self.episode_step) + ".step.gz"
-       record_file = gzip.open(record_file_name, "wb")
-       cloudpickle.dump(record, record_file)
-       record_file.close() 
+         os.mkdir(save_step_dir_name) 
+       save_step_file_name = save_step_dir_name + str(self.episode) + "." + str(self.episode_step) + ".step.gz"
+       save_step_file = gzip.open(save_step_file_name, "wb")
+       cloudpickle.dump(save_step, save_step_file)
+       save_step_file.close() 
 
      self.last_obs = obs
      self.last_info = info
      return final_reward
 
    def close(self):
-     self.log_file.close()
+     pass

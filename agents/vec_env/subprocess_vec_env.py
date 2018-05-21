@@ -82,7 +82,7 @@ class SubprocessVecEnv(VecEnv):
     def close(self):
         if self.closed:
             return
-        if self.waiting:
+        if self.actions is not None:
             for remote in self.remotes:            
                 remote.recv()
         for remote in self.remotes:
