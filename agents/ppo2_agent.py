@@ -28,7 +28,7 @@ def main():
       discount=0.99
     print("DISCOUNT: %s" % (discount,))
 
-    vec_env = make_vec_env()
+    vec_env = make_vec_env(extra_wrap_fn=lambda env: FrameStack(env, 4))
 
     """Run PPO until the environment throws an exception."""
     logger.configure(dir=os.environ.get('RETRO_LOGDIR'))

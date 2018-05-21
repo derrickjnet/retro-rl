@@ -45,7 +45,7 @@ class Exploration:
      self.last_info = None
   
    def action_meta(self, action_meta):
-     print("ACTION: %s" % (action_meta,), file=self.log_file)
+     print("%s: timestmap=%s %s" % (action_meta[0], datetime.datetime.now(), action_meta[1]), file=self.log_file)
 
    def step(self, action, obs, reward, done, info, state_embedding): 
      self.episode_step += 1

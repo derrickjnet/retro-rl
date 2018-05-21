@@ -15,7 +15,7 @@ from vec_env.subprocess_vec_env import SubprocessVecEnv
 def get_env():
     return env
 
-def make_env(stack=True, extra_wrap_fn=None):
+def make_env(extra_wrap_fn=None):
     if 'RETRO_RECORD' in os.environ:
       from retro_contest.local import make
       game=os.environ['RETRO_GAME']
@@ -28,18 +28,14 @@ def make_env(stack=True, extra_wrap_fn=None):
 
     env = SonicDiscretizer(env)
     env = WarpFrame(env)
-    if stack:
-      env = FrameStack(env, 4)
     if extra_wrap_fn is not None:
       env = extra_wrap_fn(env)
     return env_id, env
 
-def make_vec_env(stack=True, extra_wrap_fn=None):
+def make_vec_env(extra_wrap_fn=None):
     def wrap_env(env):
       env = SonicDiscretizer(env)
       env = WarpFrame(env)
-      if stack:
-        env = FrameStack(env, 4)
       if extra_wrap_fn is not None:
         env = extra_wrap_fn(env)
       return env

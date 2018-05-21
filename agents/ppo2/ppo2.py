@@ -110,7 +110,7 @@ class Model(object):
             action_logits = action_logits_arr[env_idx]
             action_probs = np.exp(action_logits - np.max(action_logits)) / np.sum(np.exp(action_logits - np.max(action_logits)))
             action_entropy = -np.sum(action_probs * action_logits) + np.log(np.sum(np.exp(action_logits)))
-            action_metas.append("total_steps=%s env=%s temperature=%s action_probs=%s action_entropy=%s action_prob=%s action=%s" % (total_steps, env_idx, temperature, list(action_probs), action_entropy, math.exp(-neglogpacs[env_idx]), actions[env_idx]))
+            action_metas.append(("POLICY", "total_steps=%s env=%s temperature=%s action_probs=%s action_entropy=%s action_prob=%s action=%s" % (total_steps, env_idx, temperature, list(action_probs), action_entropy, math.exp(-neglogpacs[env_idx]), actions[env_idx])))
           return (actions, action_metas, values, states, neglogpacs)
           #END: entropy regularization
 

@@ -64,7 +64,7 @@ def main():
         else:
           state_encoder = None
 
-        env_id, env = make_env(stack=False) 
+        env_id, env = make_env() 
         env = ExplorationEnv(env_id, env, Exploration, state_encoder=state_encoder)
         env = BatchedFrameStack(BatchedGymEnv([[env]]), num_images=4, concat=False)
 
