@@ -22,6 +22,7 @@ from dqn.dqn_dist import rainbow_models as rainbow_models
 from dqn.soft_dqn_scalar import noisy_net_models as soft_noisy_net_models
 from dqn.soft_dqn_dist import rainbow_models as soft_rainbow_models
 from sonic_util import make_env
+from exploration.exploration import Exploration
 from exploration.exploration_env import ExplorationEnv
 from exploration.state_encoder import StateEncoder
 
@@ -62,8 +63,9 @@ def main():
           state_encoder = StateEncoder(sess, encoder_dir = os.environ['RETRO_ENCODERDIR'])
         else:
           state_encoder = None
-  
-        env = ExplorationEnv(make_env(stack=False), state_encoder=state_encoder)
+
+        env_id, env = make_env(stack=False) 
+        env = ExplorationEnv(env_id, env, Exploration, state_encoder=state_encoder)
         env = BatchedFrameStack(BatchedGymEnv([[env]]), num_images=4, concat=False)
 
         if 'RETRO_POLICYDIR' in os.environ:

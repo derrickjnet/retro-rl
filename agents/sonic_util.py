@@ -12,6 +12,27 @@ from baselines.common.atari_wrappers import WarpFrame, FrameStack
 
 from vec_env.dummy_vec_env import DummyVecEnv
 from vec_env.subprocess_vec_env import SubprocessVecEnv
+def get_env():
+    return env
+
+def make_env(stack=True, extra_wrap_fn=None):
+    if 'RETRO_RECORD' in os.environ:
+      from retro_contest.local import make
+      game=os.environ['RETRO_GAME']
+      state=os.environ['RETRO_STATE']
+      env_id = game + "-" + state
+      env = make(game=game, state=state, bk2dir=os.environ['RETRO_RECORD'])
+    else:
+      env_id = 'tmp/sock'
+      env = grc.RemoteEnv('tmp/sock')
+
+    env = SonicDiscretizer(env)
+    env = WarpFrame(env)
+    if stack:
+      env = FrameStack(env, 4)
+    if extra_wrap_fn is not None:
+      env = extra_wrap_fn(env)
+    return env_id, env
 
 def make_vec_env(stack=True, extra_wrap_fn=None):
     def wrap_env(env):

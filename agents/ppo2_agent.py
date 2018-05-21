@@ -52,7 +52,7 @@ def main():
         # Take more timesteps than we need to be sure that
         # we stop due to an exception.
         ppo2.learn(policy=policies.CnnPolicy,
-                   env=RewardScalingVecEnv(ExplorationVecEnv(vec_env, lambda env_id: Exploration(env_id), state_encoder=state_encoder), reward_scale = 0.01),
+                   env=RewardScalingVecEnv(ExplorationVecEnv(vec_env, Exploration, state_encoder=state_encoder), reward_scale = 0.01),
                    nsteps=4096,
                    nminibatches=8,
                    lam=0.95,
