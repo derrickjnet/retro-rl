@@ -12,7 +12,8 @@ import cloudpickle
 import gzip
 
 class Exploration:
-   def __init__(self, env_id, allow_backtracking=True, max_exploration_steps=None, log_file=sys.stdout, save_state_dir=None):
+   def __init__(self, env_idx, env_id, allow_backtracking=True, max_exploration_steps=None, log_file=sys.stdout, save_state_dir=None):
+     self.env_idx = env_idx
      self.env_id = env_id 
      self.log_file = log_file
      self.save_state_dir = save_state_dir
@@ -33,7 +34,7 @@ class Exploration:
      else:
        self.episode += 1
      if self.episode > 0:
-       print("EPISODE: timestamp=%s total_steps=%s episode=%s episode_step=%s total_reward=%s total_adjusted_reward=%s total_extra_reward=%s avg_episode_reward=%s" % (datetime.datetime.now(), self.total_steps, self.episode, self.episode_step, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, self.global_reward / float(self.episode)), file=self.log_file)
+       print("EPISODE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s total_reward=%s total_adjusted_reward=%s total_extra_reward=%s avg_episode_reward=%s" % (datetime.datetime.now(), self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, self.global_reward / float(self.episode)), file=self.log_file)
        sys.stdout.flush()
      self.local_visited = dict()
      self.episode_step = 0
@@ -101,13 +102,14 @@ class Exploration:
        final_reward = reward + extra_reward
 
      timestamp = datetime.datetime.now()
-     print("EXPLORE: timestamp=%s total_steps=%s episode=%s episode_step=%s local_visited=%s global_visited=%s exploration_reward_weight=%s extra_reward_scale=%s exploration_local_reward=%s exploration_global_reward=%s extra_rings_reward=%s relative_x=%s relative_y=%s cell=%s embedding=%s" % (timestamp, self.total_steps, self.episode, self.episode_step, self.local_visited[cell_key], self.global_visited[cell_key], exploration_reward_weight, extra_reward_scale, exploration_local_reward, exploration_global_reward, extra_rings_reward, relative_x, relative_y, cell_key, state_embedding.tolist()), file=self.log_file)
-     print("STEP: timestamp=%s total_steps=%s episode=%s episode_step=%s action=%s reward=%s adjusted_reward=%s extra_reward=%s current_reward=%s current_adjusted_reward=%s current_extra_reward=%s info=%s" % (timestamp, self.total_steps, self.episode, self.episode_step, action, reward, adjusted_reward, extra_reward, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, info), file=self.log_file)
+     print("EXPLORE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s local_visited=%s global_visited=%s exploration_reward_weight=%s extra_reward_scale=%s exploration_local_reward=%s exploration_global_reward=%s extra_rings_reward=%s relative_x=%s relative_y=%s cell=%s embedding=%s" % (timestamp, self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.local_visited[cell_key], self.global_visited[cell_key], exploration_reward_weight, extra_reward_scale, exploration_local_reward, exploration_global_reward, extra_rings_reward, relative_x, relative_y, cell_key, state_embedding.tolist()), file=self.log_file)
+     print("STEP: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s action=%s done=%s, reward=%s adjusted_reward=%s extra_reward=%s current_reward=%s current_adjusted_reward=%s current_extra_reward=%s info=%s" % (timestamp, self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, action, done, reward, adjusted_reward, extra_reward, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, info), file=self.log_file)
      sys.stdout.flush()
 
      if self.save_state_dir is not None:
        event = {
          'timestamp' : timestamp,
+         'env_idx' : self.env_idx,
          'env_id' : self.env_id,
          'total_steps' : self.total_steps, 
          'episode' : self.episode,

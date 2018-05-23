@@ -3,14 +3,17 @@ import numpy as np
 from anyrl.envs.wrappers.batched import BatchedWrapper 
 
 class ExplorationBatchedEnv(BatchedWrapper):
-    def __init__(self, batched_env, exploration_f, state_encoder=None, record_root_dir=os.environ['RETRO_RECORD']):
+    def __init__(self, batched_env, exploration_f, state_encoder=None, record_root_dir=os.environ['RETRO_RECORD'], save_states='RETRO_SAVESTATE' in os.environ):
         BatchedWrapper.__init__(self, batched_env)
         self.env_ids = batched_env.env_ids
         self.batched_env = batched_env
         self.state_encoder = state_encoder
-        self.record_dirs = [ record_root_dir + "/" + self.env_ids[env_idx] for env_idx in range(self.num_envs) ]
-        self.log_files = [ open(self.record_dirs[env_idx] + "/log", "w") for env_idx in range(self.num_envs) ]
-        self.explorations = [ exploration_f(self.env_ids[env_idx], log_file=self.log_files[env_idx], save_state_dir=self.record_dirs[env_idx]) for env_idx in range(self.num_envs) ]
+        if save_states:
+          self.save_state_dirs = [ record_root_dir + "/" + self.env_ids[env_idx] for env_idx in range(self.num_envs) ]
+        else:
+          self.save_state_dirs = [ None for env_idx in range(self.num_envs) ]
+        self.log_files = [ open(record_root_dir + "/" + self.env_ids[env_idx] + "/log", "w") for env_idx in range(self.num_envs) ]
+        self.explorations = [ exploration_f(env_idx, self.env_ids[env_idx], log_file=self.log_files[env_idx], save_state_dir=self.save_state_dirs[env_idx]) for env_idx in range(self.num_envs) ]
         self.actions = {}
 
     def action_metas(self, action_metas, sub_batch=0):
@@ -35,6 +38,8 @@ class ExplorationBatchedEnv(BatchedWrapper):
         for env_offset_idx in range(0, self.batched_env.num_envs_per_sub_batch):
           final_reward = self.explorations[env_base_idx + env_offset_idx].step(self.actions[sub_batch][env_offset_idx], obses[env_offset_idx], rews[env_offset_idx], dones[env_offset_idx], infos[env_offset_idx], state_embeddings[env_offset_idx])
           final_rewards.append(final_reward)
+          if dones[env_offset_idx]: 
+            self.explorations[env_base_idx + env_offset_idx].reset(obses[env_offset_idx])
         del self.actions[sub_batch]
         return obses, np.asarray(final_rewards), dones, infos
  

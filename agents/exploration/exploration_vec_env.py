@@ -1,15 +1,19 @@
+import os
 import numpy as np
 from baselines.common.vec_env import VecEnv
 
 class ExplorationVecEnv(VecEnv):
-    def __init__(self, vec_env, exploration_f, state_encoder=None, record_root_dir=os.environ['RETRO_RECORD']):
+    def __init__(self, vec_env, exploration_f, state_encoder=None, record_root_dir=os.environ['RETRO_RECORD'], save_states='RETRO_SAVESTATE' in os.environ):
         VecEnv.__init__(self, vec_env.num_envs, vec_env.observation_space, vec_env.action_space)
         self.env_ids = vec_env.env_ids
         self.vec_env = vec_env
         self.state_encoder = state_encoder
-        self.record_dirs = [ self.record_root_dir + "/" + self.env_ids[env_idx] for env_idx in range(self.num_envs) ]
-        self.log_files = [ open(self.record_dirs[env_idx] + "/log", "w") for env_idx in range(self.num_envs) ]
-        self.explorations = [ exploration_f(self.env_ids[env_idx], log_file=self.log_files[env_idx], save_state_dir=self.record_dirs[env_idx]) for env_idx in range(self.num_envs) ]
+        if save_states:
+          self.save_state_dirs = [ record_root_dir + "/" + self.env_ids[env_idx] for env_idx in range(self.num_envs) ]
+        else:
+          self.save_state_dirs = [ None for env_idx in range(self.num_envs) ]
+        self.log_files = [ open(record_root_dir + "/" + self.env_ids[env_idx] + "/log", "w") for env_idx in range(self.num_envs) ]
+        self.explorations = [ exploration_f(env_idx, self.env_ids[env_idx], log_file=self.log_files[env_idx], save_state_dir=self.save_state_dirs[env_idx]) for env_idx in range(self.num_envs) ]
         self.actions = None   
 
     def action_metas(self, action_metas):

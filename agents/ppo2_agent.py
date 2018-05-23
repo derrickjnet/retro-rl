@@ -13,6 +13,7 @@ import ppo2.policies as policies
 #import baselines.ppo2.policies as policies
 import baselines.logger as logger
 import gym_remote.exceptions as gre
+from baselines.common.atari_wrappers import FrameStack
 
 from vec_env.reward_scaling_vec_env import RewardScalingVecEnv
 from exploration.exploration_vec_env import ExplorationVecEnv
