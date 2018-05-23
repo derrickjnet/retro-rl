@@ -11,7 +11,8 @@ import os
 from anyrl.algos import DQN
 from anyrl.envs import BatchedGymEnv
 from anyrl.envs.wrappers import BatchedFrameStack
-from anyrl.rollouts import BatchedPlayer, PrioritizedReplayBuffer, NStepPlayer
+from rollouts.batched_player import BatchedPlayer
+from anyrl.rollouts import PrioritizedReplayBuffer, NStepPlayer
 from anyrl.spaces import gym_space_vectorizer
 import gym_remote.exceptions as gre
 
@@ -21,9 +22,9 @@ from dqn.dqn_scalar import noisy_net_models as noisy_net_models
 from dqn.dqn_dist import rainbow_models as rainbow_models
 from dqn.soft_dqn_scalar import noisy_net_models as soft_noisy_net_models
 from dqn.soft_dqn_dist import rainbow_models as soft_rainbow_models
-from sonic_util import make_env
+from sonic_util import make_batched_env
 from exploration.exploration import Exploration
-from exploration.exploration_env import ExplorationEnv
+from exploration.exploration_batched_env import ExplorationBatchedEnv
 from exploration.state_encoder import StateEncoder
 
 class ScheduledSaver:
@@ -64,9 +65,11 @@ def main():
         else:
           state_encoder = None
 
-        env_id, env = make_env() 
-        env = ExplorationEnv(env_id, env, Exploration, state_encoder=state_encoder)
-        env = BatchedFrameStack(BatchedGymEnv([[env]]), num_images=4, concat=False)
+        env = make_batched_env()
+        env_ids = env.env_ids
+        env = BatchedFrameStack(env, num_images=4, concat=True)
+        env.env_ids = env_ids 
+        env = ExplorationBatchedEnv(env, Exploration, state_encoder=state_encoder)
 
         if 'RETRO_POLICYDIR' in os.environ:
           expert = PolicyExpert(sess, batch_size=1, policy_dir=os.environ['RETRO_POLICYDIR'])

@@ -7,6 +7,7 @@ import os
 
 import gym
 import gym_remote.client as grc
+from anyrl.envs.gym import batched_gym_env, BatchedGymEnv
 
 from baselines.common.atari_wrappers import WarpFrame, FrameStack
 
@@ -31,6 +32,32 @@ def make_env(extra_wrap_fn=None):
     if extra_wrap_fn is not None:
       env = extra_wrap_fn(env)
     return env_id, env
+
+def make_batched_env(extra_wrap_fn=None):
+    def wrap_env(env):
+      env = SonicDiscretizer(env)
+      env = WarpFrame(env)
+      if extra_wrap_fn is not None:
+        env = extra_wrap_fn(env)
+      return env
+ 
+    if 'RETRO_RECORD' in os.environ:
+      from retro_contest.local import make
+      record_dir=os.environ['RETRO_RECORD']
+      def prepare_env(game, state):
+        bk2dir = record_dir + "/" + game + "-" + state
+        os.mkdir(bk2dir)
+        return wrap_env(make(game=game, state=state, bk2dir=bk2dir))
+      game=os.environ['RETRO_GAME']
+      state=os.environ['RETRO_STATE']
+      #env = batched_gym_env([lambda: prepare_env(game, state)], sync=True)
+      env = BatchedGymEnv([[prepare_env(game, state)]])
+      env.env_ids = [game + "-" + state]
+      return env
+    else:
+      env = BatchedGymEnv([[wrap_env(grc.RemoteEnv('tmp/sock'))]])
+      env.env_ids = ['tmp/sock']
+      return env
 
 def make_vec_env(extra_wrap_fn=None):
     def wrap_env(env):

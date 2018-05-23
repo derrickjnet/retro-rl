@@ -109,7 +109,9 @@ class ScalarQNetwork(TFQNetwork):
         #BEGIN: soft q learning
         total_steps = self.session.run(self.total_steps_incr_op)
         temperature = self.session.run(self.temperature)
+        #BEGIN: action meta
         action_metas = []
+        #END: action meta
         actions = []
         for env_idx in range(0,len(observations)):
           episode_step = states[0][env_idx] + 1
@@ -126,7 +128,9 @@ class ScalarQNetwork(TFQNetwork):
               action_probs = expert_action_probs[env_idx]
               action_entropy = -sum([log(action_prob) * action_prob for action_prob in action_probs if action_prob > 0])
               action = np.random.choice(len(action_probs), p=action_probs) 
-              action_metas.append(("EXPERT", "total_steps=%s env=%s episode=%s episode_step=%s action_probs=%s action_entropy=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, self.episode_idx, episode_step, list(action_probs), action_entropy, action)))
+              #BEGIN: action meta
+              action_metas.append(("EXPERT", "total_steps=%s env=%s episode=%s episode_step=%s action_probs=%s action_entropy=%s action=%s" % (total_steps, env_idx, self.episode_idx, episode_step, list(action_probs), action_entropy, action)))
+              #END: action meta
               actions.append(action)
               continue 
           #END: discover 
@@ -136,19 +140,25 @@ class ScalarQNetwork(TFQNetwork):
             action_probs = np.exp(action_logits) / np.sum(np.exp(action_logits))
             action_entropy = -np.sum(action_probs * action_logits) + np.log(np.sum(np.exp(action_logits)))
             action = np.random.choice(len(action_probs), p=action_probs) 
-            action_metas.append(("POLICY", "total_steps=%s env=%s episode=%s episode_step=%s temperature=%s action_values=%s action_probs=%s action_entropy=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, self.episode_idx, episode_step, temperature, list(action_values), list(action_probs), action_entropy, action)))
+            #BEGIN: action meta
+            action_metas.append(("POLICY", "total_steps=%s env=%s episode=%s episode_step=%s temperature=%s action_values=%s action_probs=%s action_entropy=%s action=%s" % (total_steps, env_idx, self.episode_idx, episode_step, temperature, list(action_values), list(action_probs), action_entropy, action)))
+            #END: action meta
           else:
             action = np.argmax(action_values)
-            action_metas.append(("POLICY", "total_steps=%s env=%s episode=%s episode_step=%s action_values=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, self.episode_idx, episode_step, list(action_values), action)))
+            #BEGIN: action meta
+            action_metas.append(("POLICY", "total_steps=%s env=%s episode=%s episode_step=%s action_values=%s action=%s" % (total_steps, env_idx, self.episode_idx, episode_step, list(action_values), action)))
+            #END: action meta
           actions.append(action)
         sys.stdout.flush()
         #END: soft q learning
         return {
             #BEGIN: soft q learning
             #'actions': np.argmax(values, axis=1),
-            'action_metas': action_metas, 
             'actions': actions,
             #END: soft q learning
+            #BEGIN: action meta
+            'action_metas': action_metas, 
+            #END: action meta
             #BEGIN: discover 
             #'states': None,
             'states': states,
