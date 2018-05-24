@@ -2,13 +2,17 @@ import numpy as np
 import random
 
 class RandomMoveExpert:
+  def __init__(self):
+    self.states = {}
+
+  def configure(self, num_actions):
+    self.num_actions = num_actions
+
   def initialize(self):
     pass
 
-  def reset(self, num_actions, batch_size):
-    self.num_actions = num_actions
-    self.batch_size = batch_size
-    self.states = [[0,0] for _ in range(0, batch_size)]
+  def reset(self, env_idx):
+    self.states[env_idx] = [0,0]
 
   def step(self, observations):
     result = []

@@ -110,7 +110,7 @@ def main():
                                   discount=discount, #0.99
                                   expert = expert
                                  ))
-      saver = ScheduledSaver(os.environ["RETRO_LOGDIR"] + "/checkpoints/")
+      saver = ScheduledSaver(os.environ["RETRO_CHECKPOINTDIR"] + "/checkpoints/")
       player = NStepPlayer(BatchedPlayer(env, dqn.online_net), 3)
       optimize = dqn.optimize(learning_rate=1e-4)
       sess.run(tf.global_variables_initializer())

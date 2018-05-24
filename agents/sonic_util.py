@@ -4,6 +4,7 @@ Environments and wrappers for Sonic training.
 
 import numpy as np
 import os
+import csv
 
 import gym
 import gym_remote.client as grc
@@ -26,59 +27,62 @@ def make_env(extra_wrap_fn=None):
     else:
       env_id = 'tmp/sock'
       env = grc.RemoteEnv('tmp/sock')
-
     env = SonicDiscretizer(env)
     env = WarpFrame(env)
     if extra_wrap_fn is not None:
       env = extra_wrap_fn(env)
     return env_id, env
 
+def build_envs(extra_wrap_fn=None):
+  def wrap_env(env):
+    env = SonicDiscretizer(env)
+    env = WarpFrame(env)
+    if extra_wrap_fn is not None:
+      env = extra_wrap_fn(env)
+    return env
+  from retro_contest.local import make
+  if 'RETRO_RECORDDIR' in os.environ:
+    record_dir=os.environ['RETRO_RECORDDIR']
+    def build_env(game, state):
+      bk2dir = record_dir + "/" + game + "-" + state
+      os.makedirs(bk2dir, exist_ok=True)
+      return lambda: wrap_env(make(game=game, state=state, bk2dir=bk2dir))
+  else:
+    def build_env(game, state):
+      return lambda: wrap_env(make(game=game, state=state))
+  subenv_ids = []
+  subenvs = []
+  if 'RETRO_GAMESFILE' in os.environ:
+    for row in csv.DictReader(open(os.environ['RETRO_GAMESFILE'], 'r')):
+      game = row['game']
+      state = row['state']
+      subenv_ids.append(game + "-" + state)
+      subenvs.append(build_env(game, state))
+  else:
+    game=os.environ['RETRO_GAME']
+    state=os.environ['RETRO_STATE']
+    subenv_ids.append(game + "-" + state)
+    subenvs.append(build_env(game, state))
+  return (subenv_ids, subenvs)
+
 def make_batched_env(extra_wrap_fn=None):
-    def wrap_env(env):
-      env = SonicDiscretizer(env)
-      env = WarpFrame(env)
-      if extra_wrap_fn is not None:
-        env = extra_wrap_fn(env)
-      return env
- 
-    if 'RETRO_RECORD' in os.environ:
-      from retro_contest.local import make
-      record_dir=os.environ['RETRO_RECORD']
-      def build_env(game, state):
-        bk2dir = record_dir + "/" + game + "-" + state
-        os.mkdir(bk2dir)
-        return lambda: wrap_env(make(game=game, state=state, bk2dir=bk2dir))
-      game=os.environ['RETRO_GAME']
-      state=os.environ['RETRO_STATE']
-      env = batched_gym_env([build_env(game, state)], sync=False)
-      #env = BatchedGymEnv([[build_env(game, state)()]])
-      env.env_ids = [game + "-" + state]
-      return env
-    else:
-      env = BatchedGymEnv([[wrap_env(grc.RemoteEnv('tmp/sock'))]])
-      env.env_ids = ['tmp/sock']
-      return env
+  if 'RETRO_ROOTDIR' in os.environ:
+    subenv_ids, subenvs = build_envs(extra_wrap_fn=extra_wrap_fn)
+    env = batched_gym_env(subenvs, sync=False)
+    #env = BatchedGymEnv([[subenv() for subenv in subenvs]])
+    env.env_ids = subenv_ids
+    return env
+  else:
+    env = BatchedGymEnv([[wrap_env(grc.RemoteEnv('tmp/sock'))]])
+    env.env_ids = ['tmp/sock']
+    return env
 
 def make_vec_env(extra_wrap_fn=None):
-    def wrap_env(env):
-      env = SonicDiscretizer(env)
-      env = WarpFrame(env)
-      if extra_wrap_fn is not None:
-        env = extra_wrap_fn(env)
-      return env
- 
-    if 'RETRO_RECORD' in os.environ:
-      from retro_contest.local import make
-      record_dir=os.environ['RETRO_RECORD']
-      def build_env(game, state):
-        bk2dir = record_dir + "/" + game + "-" + state
-        os.mkdir(bk2dir)
-        return lambda: wrap_env(make(game=game, state=state, bk2dir=bk2dir))
-      game=os.environ['RETRO_GAME']
-      state=os.environ['RETRO_STATE']
-      return SubprocessVecEnv([(game + "-" + state, build_env(game, state))])
-    else:
-      return DummyVecEnv([('tmp/sock', lambda: wrap_env(grc.RemoteEnv('tmp/sock')))])
+  if 'RETRO_ROOTDIR' in os.environ:
+    subenv_ids, subenvs = build_envs(extra_wrap_fn=extra_wrap_fn)
+    return SubprocessVecEnv(zip(subenv_ids, subenvs))
+  else:
+    return DummyVecEnv([('tmp/sock', lambda: wrap_env(grc.RemoteEnv('tmp/sock')))])
 
 class SonicDiscretizer(gym.ActionWrapper):
     """

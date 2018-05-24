@@ -3,16 +3,16 @@ import numpy as np
 from anyrl.envs.wrappers.batched import BatchedWrapper 
 
 class ExplorationBatchedEnv(BatchedWrapper):
-    def __init__(self, batched_env, exploration_f, state_encoder=None, record_root_dir=os.environ['RETRO_RECORD'], save_states='RETRO_SAVESTATE' in os.environ):
+    def __init__(self, batched_env, exploration_f, state_encoder=None, root_dir=os.environ['RETRO_ROOTDIR'], record_dir=os.environ.get('RETRO_RECORDDIR'), save_states='RETRO_SAVESTATE' in os.environ):
         BatchedWrapper.__init__(self, batched_env)
         self.env_ids = batched_env.env_ids
         self.batched_env = batched_env
         self.state_encoder = state_encoder
+        self.log_files = [ open(root_dir + "/" + self.env_ids[env_idx] + "/log", "w") for env_idx in range(self.num_envs) ]
         if save_states:
-          self.save_state_dirs = [ record_root_dir + "/" + self.env_ids[env_idx] for env_idx in range(self.num_envs) ]
+          self.save_state_dirs = [ record_dir + "/" + self.env_ids[env_idx] for env_idx in range(self.num_envs) ]
         else:
           self.save_state_dirs = [ None for env_idx in range(self.num_envs) ]
-        self.log_files = [ open(record_root_dir + "/" + self.env_ids[env_idx] + "/log", "w") for env_idx in range(self.num_envs) ]
         self.explorations = [ exploration_f(env_idx, self.env_ids[env_idx], log_file=self.log_files[env_idx], save_state_dir=self.save_state_dirs[env_idx]) for env_idx in range(self.num_envs) ]
         self.actions = {}
 

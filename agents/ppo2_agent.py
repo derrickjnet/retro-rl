@@ -32,7 +32,7 @@ def main():
     vec_env = make_vec_env(extra_wrap_fn=lambda env: FrameStack(env, 4))
 
     """Run PPO until the environment throws an exception."""
-    logger.configure(dir=os.environ.get('RETRO_LOGDIR'))
+    logger.configure(dir=os.environ.get('RETRO_CHECKPOINTDIR'))
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
     with tf.Session(config=config) as sess:
