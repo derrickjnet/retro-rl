@@ -63,7 +63,7 @@ def main():
                    ent_coef=0.01,
                    lr=lambda _: 2e-4,
                    cliprange=lambda _: 0.1,
-                   total_timesteps=int(1.5e6),
+                   total_timesteps=int(1.5e6 * vec_env.num_envs),
                    save_interval=1,
                    init_fun=init_fun)
 
