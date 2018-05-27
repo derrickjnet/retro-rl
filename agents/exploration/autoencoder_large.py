@@ -48,16 +48,16 @@ def autoencoder_embedding_errors(embeddings):
 autoencoder_model_scope = "autoencoder"
 
 def autoencoder_model(use_noisy=False, use_embedding_loss=False):
-    model_obs = autoencoder_observations() 
-    model_rescaled_obs = autoencoder_observations_rescaled(model_obs)
-    model_embeddings_original = autoencoder_encoder(model_rescaled_obs)
+    model_obses = autoencoder_observations() 
+    model_rescaled_obses = autoencoder_observations_rescaled(model_obses)
+    model_embeddings_original = autoencoder_encoder(model_rescaled_obses)
     if use_noisy:
       model_embeddings = autoencoder_embeddings_noisy(model_embeddings_original)
     else:
       model_embeddings = model_embeddings_original
     model_outputs = autoencoder_decoder(model_embeddings)
 
-    reconstruction_errors = autoencoder_reconstruction_errors(model_rescaled_obs, model_outputs)
+    reconstruction_errors = autoencoder_reconstruction_errors(model_rescaled_obses, model_outputs)
     reconstruction_loss = tf.reduce_mean(reconstruction_errors)
     embedding_errors = autoencoder_embedding_errors(model_embeddings_original)
     embedding_loss = tf.reduce_mean(embedding_errors)
@@ -66,5 +66,4 @@ def autoencoder_model(use_noisy=False, use_embedding_loss=False):
     else:
       train_loss = reconstruction_loss
     
-    return model_obs, (model_embeddings_original, model_embeddings), (reconstruction_errors, embedding_errors), (reconstruction_loss, embedding_loss), train_loss
-
+    return model_obses, (model_embeddings_original, model_embeddings), (reconstruction_errors, embedding_errors), (reconstruction_loss, embedding_loss), train_loss
