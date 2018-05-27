@@ -59,16 +59,21 @@ class ScalarQNetwork(TFQNetwork):
         self.dueling = dueling
         self.dense = dense
         self.loss_fn = loss_fn
+        #BEGIN: discover
         self.discover_steps = discover_steps
         self.cooling_steps = cooling_steps
         self.expert_prob = expert_prob
         self.expert = expert
+        if expert != None:
+          expert.configure(num_actions)
+        self.env_episodes = {}
+        #END: discover
         old_vars = tf.trainable_variables()
         with tf.variable_scope(name):
             #BEGIN: discover
             self.total_steps_var = tf.Variable(name="total_steps", dtype=tf.int64, initial_value=tf.constant(0,dtype=tf.int64), trainable=False) 
             self.total_steps_incr_op = tf.assign_add(self.total_steps_var, 1)
-            #BEGIN: discover
+            #END: discover
             #BEGIN: soft q learning
             self.temperature = tf.cond(
                                 self.total_steps_var <= discover_steps,
@@ -92,11 +97,6 @@ class ScalarQNetwork(TFQNetwork):
     def start_state(self, batch_size):
         #BEGIN: discover
         #return None
-        self.expert.reset(self.num_actions, batch_size)
-        if not hasattr(self, 'episode_idx'):
-          self.episode_idx = 0
-        else:
-          self.episode_idx += 1
         return ([0 for _ in range(0, batch_size)], [False for _ in range(0, batch_size)])
         #END: discover
 
@@ -104,16 +104,24 @@ class ScalarQNetwork(TFQNetwork):
         feed = self.step_feed_dict(observations, states)
         values = self.session.run(self.step_values, feed_dict=feed)
         #BEGIN: discover
+        for env_idx in range(0,len(observations)):
+          if states[0][env_idx] == 0:
+            self.env_episodes[env_idx] = self.env_episodes.get(env_idx,-1) + 1
+            self.expert.reset(env_idx)
         expert_action_probs = self.expert.step(self.obs_vectorizer.to_vecs(observations))
         #END: discover
         #BEGIN: soft q learning
         total_steps = self.session.run(self.total_steps_incr_op)
         temperature = self.session.run(self.temperature)
+        #BEGIN: action meta
+        action_metas = []
+        #END: action meta
         actions = []
         for env_idx in range(0,len(observations)):
+          #BEGIN: discover
+          episode_idx = self.env_episodes[env_idx]
           episode_step = states[0][env_idx] + 1
           states[0][env_idx] = episode_step
-          #BEGIN: discover
           if self.expert is not None:
             expert_flag = states[1][env_idx]
             if not expert_flag and random.random() > (1 - self.expert_prob) + self.expert_prob * min(1.0, float(total_steps) / max(1.0,self.discover_steps)):
@@ -125,7 +133,9 @@ class ScalarQNetwork(TFQNetwork):
               action_probs = expert_action_probs[env_idx]
               action_entropy = -sum([log(action_prob) * action_prob for action_prob in action_probs if action_prob > 0])
               action = np.random.choice(len(action_probs), p=action_probs) 
-              print("EXPERT: timestamp=%s total_steps=%s env=%s episode=%s episode_step=%s action_probs=%s action_entropy=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, self.episode_idx, episode_step, list(action_probs), action_entropy, action))
+              #BEGIN: action meta
+              action_metas.append(("EXPERT", "total_steps=%s env=%s episode=%s episode_step=%s action_probs=%s action_entropy=%s action=%s" % (total_steps, env_idx, episode_idx, episode_step, list(action_probs), action_entropy, action)))
+              #END: action meta
               actions.append(action)
               continue 
           #END: discover 
@@ -135,10 +145,14 @@ class ScalarQNetwork(TFQNetwork):
             action_probs = np.exp(action_logits) / np.sum(np.exp(action_logits))
             action_entropy = -np.sum(action_probs * action_logits) + np.log(np.sum(np.exp(action_logits)))
             action = np.random.choice(len(action_probs), p=action_probs) 
-            print("POLICY: timestamp=%s total_steps=%s env=%s episode=%s episode_step=%s temperature=%s action_values=%s action_probs=%s action_entropy=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, self.episode_idx, episode_step, temperature, list(action_values), list(action_probs), action_entropy, action))
+            #BEGIN: action meta
+            action_metas.append(("POLICY", "total_steps=%s env=%s episode=%s episode_step=%s temperature=%s action_values=%s action_probs=%s action_entropy=%s action=%s" % (total_steps, env_idx, episode_idx, episode_step, temperature, list(action_values), list(action_probs), action_entropy, action)))
+            #END: action meta
           else:
             action = np.argmax(action_values)
-            print("POLICY: timestamp=%s total_steps=%s env=%s episode=%s episode_step=%s action_values=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, self.episode_idx, episode_step, list(action_values), action))
+            #BEGIN: action meta
+            action_metas.append(("POLICY", "total_steps=%s env=%s episode=%s episode_step=%s action_values=%s action=%s" % (total_steps, env_idx, self.episode_idx, episode_step, list(action_values), action)))
+            #END: action meta
           actions.append(action)
         sys.stdout.flush()
         #END: soft q learning
@@ -147,6 +161,9 @@ class ScalarQNetwork(TFQNetwork):
             #'actions': np.argmax(values, axis=1),
             'actions': actions,
             #END: soft q learning
+            #BEGIN: action meta
+            'action_metas': action_metas, 
+            #END: action meta
             #BEGIN: discover 
             #'states': None,
             'states': states,

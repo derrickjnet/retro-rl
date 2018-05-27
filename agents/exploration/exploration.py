@@ -12,9 +12,13 @@ import cloudpickle
 import gzip
 
 class Exploration:
-   def __init__(self, env_spec, env_idx):
-     self.env_id = env_spec.id + "--" + env_idx
-     self.max_exploration_steps = None 
+   def __init__(self, env_idx, env_id, allow_backtracking=True, max_exploration_steps=None, log_file=sys.stdout, save_state_dir=None):
+     self.env_idx = env_idx
+     self.env_id = env_id 
+     self.log_file = log_file
+     self.save_state_dir = save_state_dir
+     self.allow_backtracking = True
+     self.max_exploration_steps = max_exploration_steps
      self.episode=None
      self.global_reward = 0
      self.total_steps=0
@@ -30,7 +34,7 @@ class Exploration:
      else:
        self.episode += 1
      if self.episode > 0:
-       print("EPISODE: timestamp=%s env=%s total_steps=%s episode=%s episode_step=%s total_reward=%s total_adjusted_reward=%s total_extra_reward=%s avg_episode_reward=%s" % (datetime.datetime.now(), self.env_id, self.total_steps, self.episode, self.episode_step, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, self.global_reward / float(self.episode)))
+       print("EPISODE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s total_reward=%s total_adjusted_reward=%s total_extra_reward=%s avg_episode_reward=%s" % (datetime.datetime.now(), self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, self.global_reward / float(self.episode)), file=self.log_file)
        sys.stdout.flush()
      self.local_visited = dict()
      self.episode_step = 0
@@ -40,6 +44,9 @@ class Exploration:
      self.total_extra_reward = 0
      self.last_obs = None
      self.last_info = None
+  
+   def action_meta(self, action_meta):
+     print("%s: timestmap=%s %s" % (action_meta[0], datetime.datetime.now(), action_meta[1]), file=self.log_file)
 
    def step(self, action, obs, reward, done, info, state_embedding): 
      self.episode_step += 1
@@ -89,15 +96,21 @@ class Exploration:
 
      self.total_extra_reward += extra_reward_scale * extra_reward
 
+     if self.allow_backtracking:
+       final_reward = adjusted_reward + extra_reward
+     else:
+       final_reward = reward + extra_reward
+
      timestamp = datetime.datetime.now()
-     print("EXPLORE: timestamp=%s env=%s total_steps=%s episode=%s episode_step=%s local_visited=%s global_visited=%s exploration_reward_weight=%s extra_reward_scale=%s exploration_local_reward=%s exploration_global_reward=%s extra_rings_reward=%s relative_x=%s relative_y=%s cell=%s embedding=%s" % (timestamp, self.env_id, self.total_steps, self.episode, self.episode_step, self.local_visited[cell_key], self.global_visited[cell_key], exploration_reward_weight, extra_reward_scale, exploration_local_reward, exploration_global_reward, extra_rings_reward, relative_x, relative_y, cell_key, state_embedding))
-     print("STEP: timestamp=%s env=%s movie=%s total_steps=%s episode=%s episode_step=%s action=%s reward=%s adjusted_reward=%s extra_reward=%s current_reward=%s current_adjusted_reward=%s current_extra_reward=%s info=%s" % (timestamp, self.env_id, self.get_movie_id(), self.total_steps, self.episode, self.episode_step, action, reward, adjusted_reward, extra_reward, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, info))
+     print("EXPLORE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s local_visited=%s global_visited=%s exploration_reward_weight=%s extra_reward_scale=%s exploration_local_reward=%s exploration_global_reward=%s extra_rings_reward=%s relative_x=%s relative_y=%s cell=%s embedding=%s" % (timestamp, self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.local_visited[cell_key], self.global_visited[cell_key], exploration_reward_weight, extra_reward_scale, exploration_local_reward, exploration_global_reward, extra_rings_reward, relative_x, relative_y, cell_key, state_embedding.tolist()), file=self.log_file)
+     print("STEP: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s action=%s done=%s, reward=%s adjusted_reward=%s extra_reward=%s current_reward=%s current_adjusted_reward=%s current_extra_reward=%s info=%s" % (timestamp, self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, action, done, reward, adjusted_reward, extra_reward, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, info), file=self.log_file)
      sys.stdout.flush()
 
-     if 'RETRO_RECORD' in os.environ:
-       record = {
+     if self.save_state_dir is not None:
+       event = {
          'timestamp' : timestamp,
-         'movie_id' : self.get_movie_id(),
+         'env_idx' : self.env_idx,
+         'env_id' : self.env_id,
          'total_steps' : self.total_steps, 
          'episode' : self.episode,
          'episode_step' : self.episode_step,
@@ -114,15 +127,17 @@ class Exploration:
          'total_adjusted_reward' : self.total_adjusted_reward,
          'total_extra_reward' : self.total_extra_reward
        }
-       record_dir_name = os.environ['RETRO_RECORD'] + "/" + self.env_id + "-" + str(self.get_movie_id()).zfill(4) + ".steps/"
+       save_state_dir_name = self.save_state_dir + "/" + self.env_id + "-" + str(self.episode).zfill(4) + ".steps/"
        if self.episode_step == 1: 
-         os.mkdir(record_dir_name) 
-       record_file_name = record_dir_name + str(self.episode) + "." + str(self.episode_step) + ".step.gz"
-       record_file = gzip.open(record_file_name, "wb")
-       cloudpickle.dump(record, record_file)
-       record_file.close() 
+         os.mkdir(save_state_dir_name) 
+       save_step_file_name = save_state_dir_name + str(self.episode) + "." + str(self.episode_step) + ".step.gz"
+       save_step_file = gzip.open(save_step_file_name, "wb")
+       cloudpickle.dump(event, save_step_file)
+       save_step_file.close() 
 
      self.last_obs = obs
      self.last_info = info
-     return adjusted_reward + extra_reward
+     return final_reward
 
+   def close(self):
+     pass

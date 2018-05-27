@@ -10,7 +10,6 @@ def encoder(inputs, reuse=False):
       net = tf.layers.conv2d(net, 96, [6, 6], strides=2, padding='SAME', activation=tf.nn.relu, name="conv2")
       net = tf.layers.conv2d(net, 96, [6, 6], strides=2, padding='SAME', activation=tf.nn.relu, name="conv3")
       net = tf.layers.conv2d(net, 96, [6, 6], strides=2, padding='SAME', activation=tf.nn.relu, name="conv4")
-      print(net)
       embeddings = tf.layers.dense(tf.reshape(net, [-1,6*6*96]), 64, activation=tf.nn.sigmoid, name="fc")
     return embeddings
 
