@@ -35,15 +35,15 @@ def autoencoder_decoder(embeddings, reuse=False):
       outputs = tf.image.resize_images(result, size=(84,84), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
     return outputs
 
-def autoencoder_reconstruction_losses(observations_rescaled, outputs):
+def autoencoder_reconstruction_errors(observations_rescaled, outputs):
   with tf.variable_scope("reconstruction"):
-    reconstruction_losses = tf.reduce_sum(tf.square(observations_rescaled - outputs),[1,2,3])
-  return reconstruction_losses
+    reconstruction_errors = tf.reduce_sum(tf.square(observations_rescaled - outputs),[1,2,3])
+  return reconstruction_errors
 
-def autoencoder_embedding_losses(embeddings):
+def autoencoder_embedding_errors(embeddings):
   with tf.variable_scope("embeddings"):
-    embedding_losses = tf.reduce_mean(tf.minimum((1-embeddings)**2, embeddings**2), [1])
-  return embedding_losses
+    embedding_errors = tf.reduce_mean(tf.minimum((1-embeddings)**2, embeddings**2), [1])
+  return embedding_errors
 
 autoencoder_model_scope = "autoencoder"
 
@@ -57,11 +57,14 @@ def autoencoder_model(use_noisy=False, use_embedding_loss=False):
       model_embeddings = model_embeddings_original
     model_outputs = autoencoder_decoder(model_embeddings)
 
-    reconstruction_losses = autoencoder_reconstruction_losses(model_rescaled_obs, model_outputs)
-    embedding_losses = autoencoder_embedding_losses(model_embeddings_original)
+    reconstruction_errors = autoencoder_reconstruction_errors(model_rescaled_obs, model_outputs)
+    reconstruction_loss = tf.reduce_mean(reconstruction_errors)
+    embedding_errors = autoencoder_embedding_errors(model_embeddings_original)
+    embedding_loss = tf.reduce_mean(embedding_errors)
     if use_embedding_loss:
-      train_loss = tf.reduce_mean(reconstruction_losses) + tf.reduce_mean(embedding_losses)
+      train_loss = reconstruction_loss + embedding_loss
     else:
-      train_loss = tf.reduce_mean(reconstruction_losses)
+      train_loss = reconstruction_loss
+    
+    return model_obs, (model_embeddings_original, model_embeddings), (reconstruction_errors, embedding_errors), (reconstruction_loss, embedding_loss), train_loss
 
-    return model_obs, model_embeddings_original, reconstruction_losses, embedding_losses, train_loss
