@@ -58,7 +58,7 @@ def autoencoder_model(use_noisy=False, use_embedding_loss=False):
     model_outputs = autoencoder_decoder(model_embeddings)
 
     reconstruction_losses = autoencoder_reconstruction_losses(model_rescaled_obs, model_outputs)
-    embedding_losses = autoencoder_embedding_losses(model_embeddings)
+    embedding_losses = autoencoder_embedding_losses(model_embeddings_original)
     if use_embedding_loss:
       train_loss = tf.reduce_mean(reconstruction_losses) + tf.reduce_mean(embedding_losses)
     else:
