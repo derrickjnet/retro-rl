@@ -47,3 +47,21 @@ def autoencoder_embedding_loss(embeddings):
     embedding_loss = tf.reduce_mean(tf.reduce_mean(tf.minimum((1-embeddings)**2, embeddings**2), [1]))
   return embedding_loss
 
+def autoencoder(use_noisy=False, use_embedding_loss=False):
+    model_obs = autoencoder_observations() 
+    model_rescaled_obs = autoencoder_observations_rescaled(model_obs)
+    model_embeddings_original = autoencoder_encoder(model_rescaled_obs)
+    if use_noisy:
+      model_embeddings = autoencoder_embeddings_noisy(model_embeddings_original)
+    else:
+      model_embeddings = model_embeddings_original
+    model_outputs = autoencoder_decoder(model_embeddings)
+
+    reconstruction_loss = autoencoder_reconstruction_loss(model_rescaled_obs, model_outputs)
+    embedding_loss = autoencoder_embedding_loss(model_embeddings)
+    if use_embedding_loss:
+      train_loss = reconstruction_loss + embedding_loss
+    else:
+      train_loss = reconstruction_loss
+
+    return model_obs, model_embeddings_original, reconstruction_loss, embedding_loss, train_loss
