@@ -118,7 +118,7 @@ def main():
       expert.initialize()
       dqn.train(num_steps=1000000, # Make sure an exception arrives before we stop.
                 player=player,
-                replay_buffer=PrioritizedReplayBuffer(1000000, 0.5, 0.4, epsilon=0.1),
+                replay_buffer=PrioritizedReplayBuffer(250000, 0.5, 0.4, epsilon=0.1),
                 optimize_op=optimize,
                 train_interval=1,
                 target_interval=8192,
