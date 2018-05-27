@@ -92,18 +92,18 @@ with tf.Session(config=config) as sess:
   if clone_mode == 'policy':
     train_obs = model.X
     train_targets = tf.placeholder(tf.float32, [None, 7])
-    model_logits = model.pd.logits
-    train_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=train_targets, logits=model_logits))
+    model_targets = model.pd.logits
+    train_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=train_targets, logits=model_targets))
   elif clone_mode == 'valuefun': 
     train_obs = tf.placeholder(tf.uint8, [None, 84,84,4])
     train_targets = tf.placeholder(tf.float32, [None, 7])
-    model_values = model.value_func(model.base(train_obs))
-    train_loss = tf.reduce_mean(tf.square(model_values - train_targets))
+    model_targets = model.value_func(model.base(train_obs))
+    train_loss = tf.reduce_mean(tf.square(model_targets - train_targets))
   elif clone_mode == 'advantage': 
     train_obs = tf.placeholder(tf.uint8, [None, 84,84,4])
     train_targets = tf.placeholder(tf.float32, [None, 7])
-    model_logits = model.value_func(model.base(train_obs))
-    train_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=train_targets, logits=model_logits))
+    model_targets = model.value_func(model.base(train_obs))
+    train_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=train_targets, logits=model_targets))
   else:
     assert False
  
@@ -117,11 +117,12 @@ with tf.Session(config=config) as sess:
     saver.restore(sess, latest_checkpoint)
 
   while True:
-    (batch_obs, batch_targets) = sess.run(batch_tensor)
+    (batch_obs, batch_target_values) = sess.run(batch_tensor)
     if (batch_obs.shape[0] != 64):
       continue
-    train_loss_value, _, global_step_value = sess.run([train_loss, train_step, global_step], feed_dict={train_obs:batch_obs, train_targets:batch_targets})
+    train_loss_value, model_target_values, _, global_step_value = sess.run([train_loss, model_targets, train_step, global_step], feed_dict={train_obs:batch_obs, train_targets:batch_target_values})
     print("STEP: step=%s loss=%s" % (global_step_value, train_loss_value))
+    print("TRAIN_TARGETS:", list(zip(list(model_target_values),list(batch_target_values))))
     sys.stdout.flush()
     if global_step_value % 1000 == 0:
       print("SAVE_CHECKPOINT: step=%s" % (global_step_value,))
