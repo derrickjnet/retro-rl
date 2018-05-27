@@ -3,7 +3,10 @@ import os
 import numpy as np
 import tensorflow as tf
 import time
-from exploration.autoencoder import encoder_rescaled, decoder
+import datetime
+
+from exploration.autoencoder import autoencoder_model_scope, autoencoder_model
+#from exploration.autoencoder import autoencoder_model_scope, autoencoder_observations, autoencoder_observations_rescaled, autoencoder_encoder, autoencoder_embeddings_noisy, autoencoder_decoder, autoencoder_reconstruction_loss, autoencoder_embedding_loss
 
 def parse_record(record_bytes, obs_steps=4):
   features = {
@@ -31,24 +34,18 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 #config.log_device_placement=True
 with tf.Session(config=config) as sess:
-  train_obs = tf.placeholder(tf.uint8, [None, 84, 84, 1])
-  model_rescaled_inputs, model_embeddings = encoder_rescaled(train_obs)
-  model_embeddings_noisy = model_embeddings + tf.random_uniform(tf.shape(model_embeddings), -0.3,0.3)
-  model_outputs = decoder(model_embeddings_noisy)
-  model_scope='autoencoder'
-  saver = tf.train.Saver(var_list=tf.trainable_variables(model_scope), max_to_keep=None)
+  with tf.variable_scope(autoencoder_model_scope):
+    model_obs, (model_embeddings_original, model_embeddings), _, (reconstruction_loss, embedding_loss), train_loss = autoencoder_model(
+                                                  use_noisy = os.environ.get('RETRO_AUTOENCODER_NOISY', "false") == "true", 
+                                                  use_embedding_loss = os.environ.get('RETRO_AUTOENCODER_EMBEDDING_LOSS', "false") == "true"
+                                                )
+
+  saver = tf.train.Saver(var_list=tf.trainable_variables(autoencoder_model_scope), max_to_keep=None)
 
   dataset = build_combined_dataset(events_path) 
   batch_tensor = dataset.make_one_shot_iterator().get_next()
 
   global_step = tf.train.create_global_step()
-
-  reconstruction_loss = tf.reduce_mean(tf.reduce_sum(tf.square(model_rescaled_inputs - model_outputs),[1,2,3]))
-  #model_embeddings_clipped = tf.minimum(tf.maximum(model_embeddings,0.01),0.99)
-  #embedding_loss = tf.reduce_mean(-tf.reduce_sum(model_embeddings_clipped*tf.log(model_embeddings_clipped) + (1.0-model_embeddings_clipped)*tf.log(1.0-model_embeddings_clipped), [1]))
-  embedding_loss = tf.reduce_mean(tf.reduce_mean(tf.minimum((1-model_embeddings)**2, model_embeddings**2), [1]))
-  train_loss = reconstruction_loss #+ embedding_loss
-  #train_loss = tf.reduce_mean(tf.reduce_sum(tf.square(model_rescaled_inputs - model_outputs), [1,2,3]))
 
   train_step = tf.train.AdamOptimizer().minimize(train_loss, global_step = global_step)
 
@@ -61,11 +58,14 @@ with tf.Session(config=config) as sess:
 
   while True:
     (batch_obs,) = sess.run(batch_tensor)
-    model_output_values, model_embedding_values, reconstruction_loss_value, embedding_loss_value, _, global_step_value = sess.run([model_outputs - model_rescaled_inputs, model_embeddings, reconstruction_loss, embedding_loss, train_step, global_step], feed_dict={train_obs:np.expand_dims(batch_obs[:,:,:,-1],3)})
-    print("STEP: step=%s reconstruction_loss=%s embedding_loss=%s" % (global_step_value, reconstruction_loss_value, embedding_loss_value))
+    model_embedding_original_values, model_embedding_values, reconstruction_loss_value, embedding_loss_value, train_loss_value, _, global_step_value = sess.run([model_embeddings_original, model_embeddings, reconstruction_loss, embedding_loss, train_loss, train_step, global_step], feed_dict={model_obs:np.expand_dims(batch_obs[:,:,:,-1],3)})
+    print("STEP: timestamp=%s step=%s reconstruction_loss=%s embedding_loss=%s train_loss=%s" % (datetime.datetime.now(), global_step_value, reconstruction_loss_value, embedding_loss_value, train_loss_value))
+
+    for model_embedding_value in model_embedding_original_values.tolist()[0:1]:
+      print("EMBEDDING_ORIGINAL: %s" % (list(map(lambda v: round(v*10000)/10000.0,model_embedding_value)),))
 
     for model_embedding_value in model_embedding_values.tolist()[0:1]:
-      print("EMBEDDING: %s" % (list(map(lambda v: round(v*100)/100.0,model_embedding_value)),))
+      print("EMBEDDING: %s" % (list(map(lambda v: round(v*10000)/10000.0,model_embedding_value)),))
       print("CODE: %s" % (list(map(lambda v: round(v),model_embedding_value)),))
     sys.stdout.flush()
     if global_step_value % 1000 == 0:

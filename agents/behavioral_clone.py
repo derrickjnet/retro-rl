@@ -12,6 +12,8 @@ if os.environ['RETRO_CLONE'] == 'policy':
   clone_mode='policy'
 elif os.environ['RETRO_CLONE'] == 'valuefun':
   clone_mode='valuefun'
+elif os.environ['RETRO_CLONE'] == 'advantage':
+  clone_mode='advantage'
 else:
   assert False
 
@@ -29,6 +31,8 @@ def parse_record(record_bytes, obs_steps=4, target_count=7):
     features['action_probs'] = tf.FixedLenFeature((target_count), tf.float32)
   elif clone_mode == 'valuefun':
     features['action_values'] = tf.FixedLenFeature((target_count), tf.float32)
+  elif clone_mode == 'advantage':
+    features['action_probs'] = tf.FixedLenFeature((target_count), tf.float32)
   else:
     assert False
   result = tf.parse_single_example(record_bytes, features) 
@@ -37,6 +41,8 @@ def parse_record(record_bytes, obs_steps=4, target_count=7):
     return obs, result['action_probs']
   elif clone_mode == 'valuefun':
     return obs, result['action_values']
+  elif clone_mode == 'advantage':
+    return obs, result['action_probs']
   else:
     assert False
 
@@ -60,12 +66,19 @@ with tf.Session(config=config) as sess:
        def __init__(self):
          self.out_shape=(84,84,4)
     model = noisy_net_models(sess, 7, ShapeDummy())[0]
+  elif clone_mode =='advantage':
+    class ShapeDummy(object):
+       def __init__(self):
+         self.out_shape=(84,84,4)
+    model = noisy_net_models(sess, 7, ShapeDummy())[0]
   else:
     assert False
  
   if clone_mode == 'policy': 
     model_scope='ppo2_model'
   elif clone_mode == 'valuefun':
+    model_scope='dqn_model'
+  elif clone_mode == 'advantage':
     model_scope='dqn_model'
   else:
     assert False
@@ -86,6 +99,11 @@ with tf.Session(config=config) as sess:
     train_targets = tf.placeholder(tf.float32, [None, 7])
     model_values = model.value_func(model.base(train_obs))
     train_loss = tf.reduce_mean(tf.square(model_values - train_targets))
+  elif clone_mode == 'advantage': 
+    train_obs = tf.placeholder(tf.uint8, [None, 84,84,4])
+    train_targets = tf.placeholder(tf.float32, [None, 7])
+    model_logits = model.value_func(model.base(train_obs))
+    train_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=train_targets, logits=model_logits))
   else:
     assert False
  
