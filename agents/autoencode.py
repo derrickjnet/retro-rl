@@ -43,7 +43,10 @@ with tf.Session(config=config) as sess:
 
     reconstruction_loss = autoencoder_reconstruction_loss(model_rescaled_obs, model_outputs)
     embedding_loss = autoencoder_embedding_loss(model_embeddings)
-    train_loss = reconstruction_loss #+ embedding_loss
+    if os.environ.get('RETRO_AUTOENCODER_EMBEDDING_LOSS', "false") == "true":
+      train_loss = reconstruction_loss + embedding_loss
+    else:
+      train_loss = reconstruction_loss
 
   saver = tf.train.Saver(var_list=tf.trainable_variables(autoencoder_model_scope), max_to_keep=None)
 
