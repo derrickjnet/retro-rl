@@ -105,12 +105,13 @@ class Model(object):
           actions, values, states, neglogpacs = act_model.step(obs, states, mask)
           action_logits_arr = sess.run(act_model.pd.logits, {act_model.X:obs})
           #action_logits_arr, action_entropy_arr = sess.run([act_model.pd.logits, act_model.pd.entropy()], {act_model.X:obs})
+          action_metas = []
           for env_idx in range(0,actions.shape[0]):
             action_logits = action_logits_arr[env_idx]
             action_probs = np.exp(action_logits - np.max(action_logits)) / np.sum(np.exp(action_logits - np.max(action_logits)))
             action_entropy = -np.sum(action_probs * action_logits) + np.log(np.sum(np.exp(action_logits)))
-            print("POLICY: timestamp=%s total_steps=%s env=%s temperature=%s action_probs=%s action_entropy=%s action_prob=%s action=%s" % (datetime.datetime.now(), total_steps, env_idx, temperature, list(action_probs), action_entropy, math.exp(-neglogpacs[env_idx]), actions[env_idx]))
-          return (actions, values, states, neglogpacs)
+            action_metas.append(("POLICY", "total_steps=%s env=%s temperature=%s action_probs=%s action_entropy=%s action_prob=%s action=%s" % (total_steps, env_idx, temperature, list(action_probs), action_entropy, math.exp(-neglogpacs[env_idx]), actions[env_idx])))
+          return (actions, action_metas, values, states, neglogpacs)
           #END: entropy regularization
 
         def get_temperature():
@@ -144,12 +145,13 @@ class Runner(AbstractEnvRunner):
         mb_states = self.states
         epinfos = []
         for _ in range(self.nsteps):
-            actions, values, self.states, neglogpacs = self.model.step(self.obs, self.states, self.dones)
+            actions, action_metas, values, self.states, neglogpacs = self.model.step(self.obs, self.states, self.dones)
             mb_obs.append(self.obs.copy())
             mb_actions.append(actions)
             mb_values.append(values)
             mb_neglogpacs.append(neglogpacs)
             mb_dones.append(self.dones)
+            self.env.action_metas(action_metas)
             self.obs[:], rewards, self.dones, infos = self.env.step(actions)
             for info in infos:
                 maybeepinfo = info.get('episode')

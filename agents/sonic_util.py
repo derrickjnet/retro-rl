@@ -2,32 +2,87 @@
 Environments and wrappers for Sonic training.
 """
 
-import gym
 import numpy as np
-
-from baselines.common.atari_wrappers import WarpFrame, FrameStack
-import gym_remote.client as grc
-
 import os
+import csv
 
+import gym
+import gym_remote.client as grc
+from anyrl.envs.gym import batched_gym_env, BatchedGymEnv
+
+from baselines.common.atari_wrappers import WarpFrame
+
+from vec_env.dummy_vec_env import DummyVecEnv
+from vec_env.subprocess_vec_env import SubprocessVecEnv
 def get_env():
+    return env
+
+def make_env(extra_wrap_fn=None):
     if 'RETRO_RECORD' in os.environ:
       from retro_contest.local import make
-      env = make(game=os.environ['RETRO_GAME'], state=os.environ['RETRO_STATE'], bk2dir=os.environ['RETRO_RECORD'])
+      game=os.environ['RETRO_GAME']
+      state=os.environ['RETRO_STATE']
+      env_id = game + "-" + state
+      env = make(game=game, state=state, bk2dir=os.environ['RETRO_RECORD'])
     else:
+      env_id = 'tmp/sock'
       env = grc.RemoteEnv('tmp/sock')
-    return env
-
-def make_env(stack=True):
-    """
-    Create an environment with some standard wrappers.
-    """
-    env = get_env()
     env = SonicDiscretizer(env)
     env = WarpFrame(env)
-    if stack:
-        env = FrameStack(env, 4)
+    if extra_wrap_fn is not None:
+      env = extra_wrap_fn(env)
+    return env_id, env
+
+def build_envs(extra_wrap_fn=None):
+  def wrap_env(env):
+    env = SonicDiscretizer(env)
+    env = WarpFrame(env)
+    if extra_wrap_fn is not None:
+      env = extra_wrap_fn(env)
     return env
+  from retro_contest.local import make
+  if 'RETRO_RECORDDIR' in os.environ:
+    record_dir=os.environ['RETRO_RECORDDIR']
+    def build_env(game, state):
+      bk2dir = record_dir + "/" + game + "-" + state
+      os.makedirs(bk2dir, exist_ok=True)
+      return lambda: wrap_env(make(game=game, state=state, bk2dir=bk2dir))
+  else:
+    def build_env(game, state):
+      return lambda: wrap_env(make(game=game, state=state))
+  subenv_ids = []
+  subenvs = []
+  if 'RETRO_GAMESFILE' in os.environ:
+    for row in csv.DictReader(open(os.environ['RETRO_GAMESFILE'], 'r')):
+      game = row['game']
+      state = row['state']
+      subenv_ids.append(game + "-" + state)
+      subenvs.append(build_env(game, state))
+  else:
+    game=os.environ['RETRO_GAME']
+    state=os.environ['RETRO_STATE']
+    subenv_ids.append(game + "-" + state)
+    subenvs.append(build_env(game, state))
+  return (subenv_ids, subenvs)
+
+def make_batched_env(extra_wrap_fn=None):
+  if 'RETRO_ROOTDIR' in os.environ:
+    subenv_ids, subenvs = build_envs(extra_wrap_fn=extra_wrap_fn)
+    env = batched_gym_env(subenvs, sync=False)
+    #env = BatchedGymEnv([[subenv() for subenv in subenvs]])
+    env.env_ids = subenv_ids
+    return env
+  else:
+    env = BatchedGymEnv([[wrap_env(grc.RemoteEnv('tmp/sock'))]])
+    env.env_ids = ['tmp/sock']
+    return env
+
+def make_vec_env(extra_wrap_fn=None):
+  if 'RETRO_ROOTDIR' in os.environ:
+    subenv_ids, subenvs = build_envs(extra_wrap_fn=extra_wrap_fn)
+    return SubprocessVecEnv(zip(subenv_ids, subenvs))
+  else:
+    return DummyVecEnv([('tmp/sock', lambda: wrap_env(grc.RemoteEnv('tmp/sock')))])
 
 class SonicDiscretizer(gym.ActionWrapper):
     """
@@ -60,26 +115,3 @@ class RewardScaler(gym.RewardWrapper):
     def reward(self, reward):
         return reward * 0.01
 
-class AllowBacktracking(gym.Wrapper):
-    """
-    Use deltas in max(X) as the reward, rather than deltas
-    in X. This way, agents are not discouraged too heavily
-    from exploring backwards if there is no way to advance
-    head-on in the level.
-    """
-    def __init__(self, env):
-        super(AllowBacktracking, self).__init__(env)
-        self._cur_x = 0
-        self._max_x = 0
-
-    def reset(self, **kwargs): # pylint: disable=E0202
-        self._cur_x = 0
-        self._max_x = 0
-        return self.env.reset(**kwargs)
-
-    def step(self, action): # pylint: disable=E0202
-        obs, reward, done, info = self.env.step(action)
-        self._cur_x += reward
-        reward = max(0, self._cur_x - self._max_x)
-        self._max_x = max(self._max_x, self._cur_x)
-        return obs, reward, done, info

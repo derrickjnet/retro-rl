@@ -11,7 +11,8 @@ import os
 from anyrl.algos import DQN
 from anyrl.envs import BatchedGymEnv
 from anyrl.envs.wrappers import BatchedFrameStack
-from anyrl.rollouts import BatchedPlayer, PrioritizedReplayBuffer, NStepPlayer
+from rollouts.batched_player import BatchedPlayer
+from anyrl.rollouts import PrioritizedReplayBuffer, NStepPlayer
 from anyrl.spaces import gym_space_vectorizer
 import gym_remote.exceptions as gre
 
@@ -21,8 +22,9 @@ from dqn.dqn_scalar import noisy_net_models as noisy_net_models
 from dqn.dqn_dist import rainbow_models as rainbow_models
 from dqn.soft_dqn_scalar import noisy_net_models as soft_noisy_net_models
 from dqn.soft_dqn_dist import rainbow_models as soft_rainbow_models
-from sonic_util import make_env
-from exploration.exploration_env import ExplorationEnv
+from sonic_util import make_batched_env
+from exploration.exploration import Exploration
+from exploration.exploration_batched_env import ExplorationBatchedEnv
 from exploration.state_encoder import StateEncoder
 
 class ScheduledSaver:
@@ -62,9 +64,12 @@ def main():
           state_encoder = StateEncoder(sess, encoder_dir = os.environ['RETRO_ENCODERDIR'])
         else:
           state_encoder = None
-  
-        env = ExplorationEnv(make_env(stack=False), state_encoder=state_encoder)
-        env = BatchedFrameStack(BatchedGymEnv([[env]]), num_images=4, concat=False)
+
+        env = make_batched_env()
+        env_ids = env.env_ids
+        env = BatchedFrameStack(env, num_images=4, concat=True)
+        env.env_ids = env_ids 
+        env = ExplorationBatchedEnv(env, Exploration, state_encoder=state_encoder)
 
         if 'RETRO_POLICYDIR' in os.environ:
           expert = PolicyExpert(sess, batch_size=1, policy_dir=os.environ['RETRO_POLICYDIR'])
@@ -105,7 +110,7 @@ def main():
                                   discount=discount, #0.99
                                   expert = expert
                                  ))
-      saver = ScheduledSaver(os.environ["RETRO_LOGDIR"] + "/checkpoints/")
+      saver = ScheduledSaver(os.environ["RETRO_CHECKPOINTDIR"] + "/checkpoints/")
       player = NStepPlayer(BatchedPlayer(env, dqn.online_net), 3)
       optimize = dqn.optimize(learning_rate=1e-4)
       sess.run(tf.global_variables_initializer())
@@ -113,7 +118,7 @@ def main():
       expert.initialize()
       dqn.train(num_steps=1000000, # Make sure an exception arrives before we stop.
                 player=player,
-                replay_buffer=PrioritizedReplayBuffer(1000000, 0.5, 0.4, epsilon=0.1),
+                replay_buffer=PrioritizedReplayBuffer(250000, 0.5, 0.4, epsilon=0.1),
                 optimize_op=optimize,
                 train_interval=1,
                 target_interval=8192,
