@@ -5,7 +5,7 @@ import tensorflow as tf
 import time
 import datetime
 
-from exploration.autoencoder import autoencoder_model_scope, autoencoder 
+from exploration.autoencoder import autoencoder_model_scope, autoencoder_model
 
 def parse_record(record_bytes, obs_steps=4):
   features = {
@@ -34,10 +34,12 @@ config.gpu_options.allow_growth = True
 #config.log_device_placement=True
 with tf.Session(config=config) as sess:
   with tf.variable_scope(autoencoder_model_scope):
-    model_obs, model_embeddings, reconstruction_loss, embedding_loss, train_loss = autoencoder(
+    model_obs, model_embeddings, reconstruction_losses, embedding_losses, train_loss = autoencoder_model(
                                                   use_noisy = os.environ.get('RETRO_AUTOENCODER_NOISY', "false") == "true", 
                                                   use_embedding_loss = os.environ.get('RETRO_AUTOENCODER_EMBEDDING_LOSS', "false") == "true"
                                                 )
+    reconstruction_loss = tf.reduce_mean(reconstruction_losses)
+    embedding_loss = tf.reduce_mean(embedding_losses)
 
   saver = tf.train.Saver(var_list=tf.trainable_variables(autoencoder_model_scope), max_to_keep=None)
 

@@ -1,7 +1,5 @@
 import tensorflow as tf
 
-autoencoder_model_scope = "autoencoder"
-
 def autoencoder_observations():
   with tf.variable_scope("observations"):
     observations = tf.placeholder(tf.uint8, [None, 84, 84, 1])
@@ -37,17 +35,19 @@ def autoencoder_decoder(embeddings, reuse=False):
       outputs = tf.image.resize_images(result, size=(84,84), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
     return outputs
 
-def autoencoder_reconstruction_loss(observations_rescaled, outputs):
+def autoencoder_reconstruction_losses(observations_rescaled, outputs):
   with tf.variable_scope("reconstruction"):
-    reconstruction_loss = tf.reduce_mean(tf.reduce_sum(tf.square(observations_rescaled - outputs),[1,2,3]))
-  return reconstruction_loss
+    reconstruction_losses = tf.reduce_sum(tf.square(observations_rescaled - outputs),[1,2,3])
+  return reconstruction_losses
 
-def autoencoder_embedding_loss(embeddings):
+def autoencoder_embedding_losses(embeddings):
   with tf.variable_scope("embeddings"):
-    embedding_loss = tf.reduce_mean(tf.reduce_mean(tf.minimum((1-embeddings)**2, embeddings**2), [1]))
-  return embedding_loss
+    embedding_losses = tf.reduce_mean(tf.minimum((1-embeddings)**2, embeddings**2), [1])
+  return embedding_losses
 
-def autoencoder(use_noisy=False, use_embedding_loss=False):
+autoencoder_model_scope = "autoencoder"
+
+def autoencoder_model(use_noisy=False, use_embedding_loss=False):
     model_obs = autoencoder_observations() 
     model_rescaled_obs = autoencoder_observations_rescaled(model_obs)
     model_embeddings_original = autoencoder_encoder(model_rescaled_obs)
@@ -57,11 +57,11 @@ def autoencoder(use_noisy=False, use_embedding_loss=False):
       model_embeddings = model_embeddings_original
     model_outputs = autoencoder_decoder(model_embeddings)
 
-    reconstruction_loss = autoencoder_reconstruction_loss(model_rescaled_obs, model_outputs)
-    embedding_loss = autoencoder_embedding_loss(model_embeddings)
+    reconstruction_losses = autoencoder_reconstruction_losses(model_rescaled_obs, model_outputs)
+    embedding_losses = autoencoder_embedding_losses(model_embeddings)
     if use_embedding_loss:
-      train_loss = reconstruction_loss + embedding_loss
+      train_loss = tf.reduce_mean(reconstruction_losses) + tf.reduce_mean(embedding_losses)
     else:
-      train_loss = reconstruction_loss
+      train_loss = tf.reduce_mean(reconstruction_losses)
 
-    return model_obs, model_embeddings_original, reconstruction_loss, embedding_loss, train_loss
+    return model_obs, model_embeddings_original, reconstruction_losses, embedding_losses, train_loss
