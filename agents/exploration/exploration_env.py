@@ -28,10 +28,13 @@ class ExplorationEnv(gym.Wrapper):
    def step(self, action): 
      obs, rew, done, info = super().step(action)
      if self.state_encoder is not None:
-       state_embedding = list(self.state_encoder.encode(np.expand_dims(np.expand_dims(obs[:,:,-1],0),-1)))[0]
+       state_encodings, state_encoding_weights = self.state_encoder.encode(np.expand_dims(np.expand_dims(obs[:,:,-1],0),-1))
+       state_encoding = list(state_encodings)[0]
+       state_encoding_weight = state_encoding_weights[0]
      else:
-       state_embedding = None
-     final_reward = self.exploration.step(action, obs, rew, done, info, state_embedding)
+       state_encoding = None
+       state_encoding_rewards = 0 
+     final_reward = self.exploration.step(action, obs, rew, done, info, state_encoding, state_encoding_weight)
      return obs, final_reward, done, info
 
    def close(self):
