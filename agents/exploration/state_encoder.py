@@ -27,10 +27,7 @@ class StateEncoder:
     start_timestamp = datetime.datetime.now()
     model_embedding_original_values, reconstruction_errors_value, reconstruction_loss_value, embedding_loss_value = self.sess.run([self.model_embeddings_original, self.reconstruction_errors, self.reconstruction_loss, self.embedding_loss], { self.model_obses:obses })
     _, global_step_value = self.sess.run([self.train_step, self.global_step], { self.model_obses:obses })
-    if self.reward_weight > 0:
-      rewards = self.reward_weight * np.sqrt(reconstruction_errors_value / 84 / 84)
-    else:
-      rewards = [0.0 for env_idx in range(len(obses))]
+    rewards = self.reward_weight * np.sqrt(reconstruction_errors_value / 84 / 84)
     stop_timestamp = datetime.datetime.now()
     print("STATE_ENCODER: timestamp=%s step=%s reconstruction_loss=%s embedding_loss=%s duration=%ssec" % (stop_timestamp, global_step_value, reconstruction_loss_value, embedding_loss_value, (datetime.datetime.now() - start_timestamp).total_seconds()))
     return model_embedding_original_values, rewards 
