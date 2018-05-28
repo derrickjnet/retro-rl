@@ -10,7 +10,7 @@ class StateEncoder:
     self.encoder_dir = encoder_dir
     self.reward_weight = reward_weight
     with tf.variable_scope(autoencoder_model_scope):
-      self.model_obses, (self.model_embeddings_original, _), (self.reconstruction_errors, _), (self.reconstruction_loss, self.embedding_loss), self.train_loss = autoencoder_model(
+      self.model_obses, (self.model_embeddings_original, _), self.reconstruction_errors, (self.reconstruction_loss, self.embedding_loss), self.train_loss = autoencoder_model(
                                                   use_noisy = os.environ.get('RETRO_STATE_ENCODER_NOISY', "false") == "true",
                                                   use_embedding_loss = os.environ.get('RETRO_STATE_ENCODER_EMBEDDING_LOSS', "false") == "true"
                                                 )
