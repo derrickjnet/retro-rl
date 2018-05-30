@@ -3,7 +3,7 @@ import numpy as np
 from baselines.common.vec_env import VecEnv
 
 class ExplorationVecEnv(VecEnv):
-    def __init__(self, vec_env, exploration_f, state_encoder=None, root_dir = os.environ['RETRO_ROOTDIR'], record_dir=os.environ.get('RETRO_RECORDDIR'), save_states=os.environ.get('RETRO_SAVESTATE') == "true"):
+    def __init__(self, vec_env, exploration_f, state_encoder=None, root_dir = os.environ['RETRO_ROOT_DIR'], record_dir=os.environ.get('RETRO_RECORD_DIR'), save_states=os.environ.get('RETRO_SAVESTATE') == "true"):
         VecEnv.__init__(self, vec_env.num_envs, vec_env.observation_space, vec_env.action_space)
         self.env_ids = vec_env.env_ids
         self.vec_env = vec_env

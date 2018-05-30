@@ -60,8 +60,8 @@ def main():
     config.log_device_placement=True
     with tf.Session(config=config) as sess:
       with tf.device(os.environ.get("RETRO_DEVICE", '/gpu:0')):
-        if 'RETRO_ENCODERDIR' in os.environ:
-          state_encoder = StateEncoder(sess, encoder_dir = os.environ['RETRO_ENCODERDIR'])
+        if 'RETRO_ENCODER_DIR' in os.environ:
+          state_encoder = StateEncoder(sess, encoder_dir = os.environ['RETRO_ENCODER_DIR'])
         else:
           state_encoder = None
 
@@ -110,7 +110,7 @@ def main():
                                   discount=discount, #0.99
                                   expert = expert
                                  ))
-      saver = ScheduledSaver(os.environ["RETRO_CHECKPOINTDIR"] + "/checkpoints/")
+      saver = ScheduledSaver(os.environ["RETRO_CHECKPOINT_DIR"] + "/checkpoints/")
       player = NStepPlayer(BatchedPlayer(env, dqn.online_net), 3)
       optimize = dqn.optimize(learning_rate=1e-4)
       sess.run(tf.global_variables_initializer())

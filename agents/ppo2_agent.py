@@ -32,12 +32,12 @@ def main():
     vec_env = make_vec_env(extra_wrap_fn=lambda env: FrameStack(env, 4))
 
     """Run PPO until the environment throws an exception."""
-    logger.configure(dir=os.environ.get('RETRO_CHECKPOINTDIR'))
+    logger.configure(dir=os.environ.get('RETRO_CHECKPOINT_DIR'))
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
     with tf.Session(config=config) as sess:
-        if 'RETRO_ENCODERDIR' in os.environ:
-          state_encoder = StateEncoder(sess, encoder_dir = os.environ['RETRO_ENCODERDIR'])
+        if 'RETRO_ENCODER_DIR' in os.environ:
+          state_encoder = StateEncoder(sess, encoder_dir = os.environ['RETRO_ENCODER_DIR'])
         else:
           state_encoder = None
 

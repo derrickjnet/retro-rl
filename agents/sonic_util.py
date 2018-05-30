@@ -41,8 +41,8 @@ def build_envs(extra_wrap_fn=None):
       env = extra_wrap_fn(env)
     return env
   from retro_contest.local import make
-  if 'RETRO_RECORDDIR' in os.environ:
-    record_dir=os.environ['RETRO_RECORDDIR']
+  if 'RETRO_RECORD_DIR' in os.environ:
+    record_dir=os.environ['RETRO_RECORD_DIR']
     def build_env(game, state):
       bk2dir = record_dir + "/" + game + "-" + state
       os.makedirs(bk2dir, exist_ok=True)
@@ -66,7 +66,7 @@ def build_envs(extra_wrap_fn=None):
   return (subenv_ids, subenvs)
 
 def make_batched_env(extra_wrap_fn=None):
-  if 'RETRO_ROOTDIR' in os.environ:
+  if 'RETRO_ROOT_DIR' in os.environ:
     subenv_ids, subenvs = build_envs(extra_wrap_fn=extra_wrap_fn)
     env = batched_gym_env(subenvs, sync=False)
     #env = BatchedGymEnv([[subenv() for subenv in subenvs]])
@@ -78,7 +78,7 @@ def make_batched_env(extra_wrap_fn=None):
     return env
 
 def make_vec_env(extra_wrap_fn=None):
-  if 'RETRO_ROOTDIR' in os.environ:
+  if 'RETRO_ROOT_DIR' in os.environ:
     subenv_ids, subenvs = build_envs(extra_wrap_fn=extra_wrap_fn)
     return SubprocessVecEnv(zip(subenv_ids, subenvs))
   else:
