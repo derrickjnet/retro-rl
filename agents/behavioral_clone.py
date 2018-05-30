@@ -65,24 +65,23 @@ with tf.Session(config=config) as sess:
     class ShapeDummy(object):
        def __init__(self):
          self.out_shape=(84,84,4)
-    model = noisy_net_models(sess, 7, ShapeDummy())[0]
+    model = noisy_net_models(sess, 7, ShapeDummy(), sigma0=0.0)[0]
   elif clone_mode =='advantage':
     class ShapeDummy(object):
        def __init__(self):
          self.out_shape=(84,84,4)
-    model = noisy_net_models(sess, 7, ShapeDummy())[0]
+    model = noisy_net_models(sess, 7, ShapeDummy(), sigma0=0.0)[0]
   else:
     assert False
  
   if clone_mode == 'policy': 
-    model_scope='ppo2_model'
+    model_scope_re='^ppo2_model/'
   elif clone_mode == 'valuefun':
-    model_scope='dqn_model'
+    model_scope_re='^dqn_model/'
   elif clone_mode == 'advantage':
-    model_scope='dqn_model'
+    model_scope_re='^dqn_model/'
   else:
     assert False
-  saver = tf.train.Saver(var_list=tf.trainable_variables(model_scope), max_to_keep=None)
 
   dataset = build_combined_dataset(events_path) 
   batch_tensor = dataset.make_one_shot_iterator().get_next()
@@ -94,22 +93,34 @@ with tf.Session(config=config) as sess:
     train_targets = tf.placeholder(tf.float32, [None, 7])
     model_targets = model.pd.logits
     train_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=train_targets, logits=model_targets))
+    saver_variables = tf.trainable_variables(model_scope_re)
   elif clone_mode == 'valuefun': 
     train_obs = tf.placeholder(tf.uint8, [None, 84,84,4])
     train_targets = tf.placeholder(tf.float32, [None, 7])
-    model_targets = model.value_func(model.base(train_obs))
+    with tf.variable_scope(model.name, reuse=True):
+      model_targets = model.value_func(model.base(train_obs))
     train_loss = tf.reduce_mean(tf.square(model_targets - train_targets))
+    saver_variables = list(filter(lambda v: not 'sigma' in v.name, tf.trainable_variables(model_scope_re)))
   elif clone_mode == 'advantage': 
     train_obs = tf.placeholder(tf.uint8, [None, 84,84,4])
     train_targets = tf.placeholder(tf.float32, [None, 7])
-    model_targets = model.value_func(model.base(train_obs))
+    with tf.variable_scope(model.name, reuse=True):
+      model_targets = model.value_func(model.base(train_obs))
     train_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(labels=train_targets, logits=model_targets))
+    saver_variables = list(filter(lambda v: not 'sigma' in v.name, tf.trainable_variables(model_scope_re)))
   else:
     assert False
  
-  train_step = tf.train.AdamOptimizer().minimize(train_loss, global_step = global_step)
+  train_step = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(train_loss, global_step = global_step)
 
-  tf.global_variables_initializer().run()
+  init_op = tf.global_variables_initializer()
+
+  #print("BEHAVIORAL_CLONE_ALL_VARIABLES: %s" % (tf.trainable_variables()))
+  #saver = tf.train.Saver(var_list=tf.trainable_variables(), max_to_keep=None)
+  print("BEHAVIORAL_CLONE_VARIABLES: %s" % (list(map(lambda v:v.name, saver_variables)),))
+  saver = tf.train.Saver(var_list=saver_variables, max_to_keep=None)
+
+  sess.run(init_op)
 
   latest_checkpoint = tf.train.latest_checkpoint(checkpoints_path)
   print("LOAD_CHECKPOINT: %s" % (latest_checkpoint,))
@@ -123,8 +134,10 @@ with tf.Session(config=config) as sess:
     train_loss_value, model_target_values, _, global_step_value = sess.run([train_loss, model_targets, train_step, global_step], feed_dict={train_obs:batch_obs, train_targets:batch_target_values})
     print("STEP: step=%s loss=%s" % (global_step_value, train_loss_value))
     print("TRAIN_TARGETS:", list(zip(list(model_target_values),list(batch_target_values))))
+    #print([n.name for n in tf.get_default_graph().as_graph_def().node])
     sys.stdout.flush()
     if global_step_value % 1000 == 0:
-      print("SAVE_CHECKPOINT: step=%s" % (global_step_value,))
-      saver.save(sess, checkpoints_path + "/checkpoint", global_step=int(time.time()))
+      checkpoint_step = int(time.time())
+      print("SAVE_CHECKPOINT: step=%s checkpoint_step=%s" % (global_step_value,checkpoint_step))
+      saver.save(sess, checkpoints_path + "/checkpoint", global_step=checkpoint_step)
 
