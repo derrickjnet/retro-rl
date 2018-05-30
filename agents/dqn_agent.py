@@ -107,7 +107,7 @@ def main():
                                   discount=discount, #0.99
                                   expert = expert
                                  ))
-      scheduler_saver = ScheduledSaver(sess, os.environ["RETRO_CHECKPOINTDIR"] + "/tensorflow/")
+      scheduler_saver = ScheduledSaver(sess, os.environ["RETRO_CHECKPOINT_DIR"] + "/tensorflow/")
       player = NStepPlayer(BatchedPlayer(env, dqn.online_net), 3)
       optimize = dqn.optimize(learning_rate=1e-4)
       sess.run(tf.global_variables_initializer())

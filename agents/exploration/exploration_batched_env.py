@@ -3,7 +3,7 @@ import numpy as np
 from anyrl.envs.wrappers.batched import BatchedWrapper 
 
 class ExplorationBatchedEnv(BatchedWrapper):
-    def __init__(self, batched_env, exploration_f, state_encoder=None, root_dir=os.environ['RETRO_ROOTDIR'], record_dir=os.environ.get('RETRO_RECORDDIR'), save_states='RETRO_SAVESTATE' in os.environ):
+    def __init__(self, batched_env, exploration_f, state_encoder=None, root_dir=os.environ['RETRO_ROOT_DIR'], record_dir=os.environ.get('RETRO_RECORD_DIR'), save_states='RETRO_SAVESTATE' in os.environ):
         BatchedWrapper.__init__(self, batched_env)
         self.env_ids = batched_env.env_ids
         self.batched_env = batched_env
