@@ -44,10 +44,10 @@ def main():
         def init_fun():
           if state_encoder != None:
             state_encoder.initialize()
-          if "RETRO_INITDIR" in os.environ:
+          if "RETRO_INIT_DIR" in os.environ:
             saver = tf.train.Saver(var_list=tf.trainable_variables('ppo2_model'))
-            latest_checkpoint = tf.train.latest_checkpoint(os.environ['RETRO_INITDIR'])
-            print("LOAD_INIT_CHECKPOINT: %s" % (latest_checkpoint,))
+            latest_checkpoint = tf.train.latest_checkpoint(os.environ['RETRO_INIT_DIR'])
+            print("PPO2_LOAD_INIT_CHECKPOINT: %s" % (latest_checkpoint,))
             saver.restore(sess, latest_checkpoint)
 
         # Take more timesteps than we need to be sure that

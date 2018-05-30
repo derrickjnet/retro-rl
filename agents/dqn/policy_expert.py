@@ -14,7 +14,7 @@ class PolicyExpert:
     self.action_probs = tf.nn.softmax(self.policy.pd.logits)
     self.policy_dir = policy_dir
 
-  def configure(num_actions):
+  def configure(self, num_actions):
     assert num_actions == 7
   
   def initialize(self):
