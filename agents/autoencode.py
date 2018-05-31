@@ -9,11 +9,11 @@ from exploration.autoencoder import Autoencoder
 
 def parse_record(record_bytes, obs_steps=4):
   features = {
-            'game_name' : tf.FixedLenFeature((), tf.string),
-            'act_name' : tf.FixedLenFeature((), tf.string),
-            'total_steps' : tf.FixedLenFeature((), tf.int64),
-            'episode' : tf.FixedLenFeature((), tf.int64),
-            'episode_step' : tf.FixedLenFeature((), tf.int64),
+            #'game_name' : tf.FixedLenFeature((), tf.string),
+            #'act_name' : tf.FixedLenFeature((), tf.string),
+            #'total_steps' : tf.FixedLenFeature((), tf.int64),
+            #'episode' : tf.FixedLenFeature((), tf.int64),
+            #'episode_step' : tf.FixedLenFeature((), tf.int64),
             'obs' : tf.FixedLenFeature((), tf.string)
           }
   result = tf.parse_single_example(record_bytes, features)

@@ -19,11 +19,11 @@ else:
 
 def parse_record(record_bytes, obs_steps=4, target_count=7):
   features = {
-            'game_name' : tf.FixedLenFeature((), tf.string),
-            'act_name' : tf.FixedLenFeature((), tf.string),
-            'total_steps' : tf.FixedLenFeature((), tf.int64),
-            'episode' : tf.FixedLenFeature((), tf.int64),
-            'episode_step' : tf.FixedLenFeature((), tf.int64),
+            #'game_name' : tf.FixedLenFeature((), tf.string),
+            #'act_name' : tf.FixedLenFeature((), tf.string),
+            #'total_steps' : tf.FixedLenFeature((), tf.int64),
+            #'episode' : tf.FixedLenFeature((), tf.int64),
+            #'episode_step' : tf.FixedLenFeature((), tf.int64),
             'obs' : tf.FixedLenFeature((), tf.string),
             'action' : tf.FixedLenFeature((), tf.int64) 
           }
