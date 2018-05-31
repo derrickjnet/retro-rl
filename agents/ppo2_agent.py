@@ -32,22 +32,22 @@ def main():
     vec_env = make_vec_env(extra_wrap_fn=lambda env: FrameStack(env, 4))
 
     """Run PPO until the environment throws an exception."""
-    logger.configure(dir=os.environ.get('RETRO_CHECKPOINTDIR'))
+    logger.configure(dir=os.environ.get('RETRO_CHECKPOINT_DIR'))
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
     with tf.Session(config=config) as sess:
-        if 'RETRO_ENCODERDIR' in os.environ:
-          state_encoder = StateEncoder(sess, encoder_dir = os.environ['RETRO_ENCODERDIR'])
+        if 'RETRO_ENCODER_DIR' in os.environ:
+          state_encoder = StateEncoder(sess, encoder_dir = os.environ['RETRO_ENCODER_DIR'])
         else:
           state_encoder = None
 
         def init_fun():
           if state_encoder != None:
             state_encoder.initialize()
-          if "RETRO_INITDIR" in os.environ:
+          if "RETRO_INIT_DIR" in os.environ:
             saver = tf.train.Saver(var_list=tf.trainable_variables('ppo2_model'))
-            latest_checkpoint = tf.train.latest_checkpoint(os.environ['RETRO_INITDIR'])
-            print("LOAD_INIT_CHECKPOINT: %s" % (latest_checkpoint,))
+            latest_checkpoint = tf.train.latest_checkpoint(os.environ['RETRO_INIT_DIR'])
+            print("PPO2_LOAD_INIT_CHECKPOINT: %s" % (latest_checkpoint,))
             saver.restore(sess, latest_checkpoint)
 
         # Take more timesteps than we need to be sure that

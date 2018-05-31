@@ -107,8 +107,10 @@ class ScalarQNetwork(TFQNetwork):
         for env_idx in range(0,len(observations)):
           if states[0][env_idx] == 0:
             self.env_episodes[env_idx] = self.env_episodes.get(env_idx,-1) + 1
-            self.expert.reset(env_idx)
-        expert_action_probs = self.expert.step(self.obs_vectorizer.to_vecs(observations))
+            if self.expert is not None:
+              self.expert.reset(env_idx)
+        if self.expert is not None:
+          expert_action_probs = self.expert.step(self.obs_vectorizer.to_vecs(observations))
         #END: discover
         #BEGIN: soft q learning
         total_steps = self.session.run(self.total_steps_incr_op)
