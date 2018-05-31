@@ -119,7 +119,8 @@ def main():
         from tensorflow.python.tools import inspect_checkpoint as chkp
         chkp.print_tensors_in_checkpoint_file(latest_checkpoint,'',all_tensors=True) 
       state_encoder.initialize()
-      expert.initialize()
+      if expert:
+        expert.initialize()
       dqn.train(num_steps=1000000, # Make sure an exception arrives before we stop.
                 player=player,
                 replay_buffer=PrioritizedReplayBuffer(250000, 0.5, 0.4, epsilon=0.1),
