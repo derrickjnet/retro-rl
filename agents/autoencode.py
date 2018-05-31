@@ -54,7 +54,7 @@ with tf.Session(config=config) as sess:
 
   global_step = tf.train.create_global_step()
 
-  train_step = tf.train.AdamOptimizer().minimize(train_loss, global_step = global_step)
+  train_step = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(train_loss, global_step = global_step)
 
   tf.global_variables_initializer().run()
 

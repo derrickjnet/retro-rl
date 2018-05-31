@@ -17,10 +17,10 @@ class Autoencoder:
 
   def encoder(self, inputs, embedding_activation, reuse=False):
     with tf.variable_scope("encoder", reuse=reuse):
-      net = tf.layers.conv2d(inputs, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.relu, name="conv1")
-      net = tf.layers.conv2d(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.relu, name="conv2")
-      net = tf.layers.conv2d(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.relu, name="conv3")
-      net = tf.layers.conv2d(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.relu, name="conv4")
+      net = tf.layers.conv2d(inputs, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="conv1")
+      net = tf.layers.conv2d(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="conv2")
+      net = tf.layers.conv2d(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="conv3")
+      net = tf.layers.conv2d(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="conv4")
       embeddings = tf.layers.dense(tf.reshape(net, [-1,6*6*self.nfilters]), 64, activation=embedding_activation, name="fc")
     return embeddings
 
@@ -31,11 +31,11 @@ class Autoencoder:
 
   def decoder(self, embeddings, reuse=False):
     with tf.variable_scope("decoder", reuse=reuse):
-      net = tf.layers.dense(embeddings, 6*6*self.nfilters, activation=tf.nn.relu, name="fc")
+      net = tf.layers.dense(embeddings, 6*6*self.nfilters, activation=tf.nn.tanh, name="fc")
       net = tf.reshape(net, [-1, 6, 6, self.nfilters])
-      net = tf.layers.conv2d_transpose(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.relu, name="deconv4")
-      net = tf.layers.conv2d_transpose(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.relu, name="deconv3")
-      net = tf.layers.conv2d_transpose(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.relu, name="deconv2")                
+      net = tf.layers.conv2d_transpose(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="deconv4")
+      net = tf.layers.conv2d_transpose(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="deconv3")
+      net = tf.layers.conv2d_transpose(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="deconv2")                
       result = tf.layers.conv2d_transpose(net, 1, [6, 6], strides=2, padding='SAME', activation=tf.nn.sigmoid, name="deconv1")
       outputs = tf.image.resize_images(result, size=(84,84), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
     return outputs
@@ -52,13 +52,13 @@ class Autoencoder:
 
   def embedding_loss(self, embeddings):
     with tf.variable_scope("embeddings"):
-      embedding_loss = tf.reduce_mean(tf.reduce_sum(embeddings**2, [1]))
+      embedding_loss = tf.reduce_mean(tf.reduce_mean(embeddings**2, [1]))
     return embedding_loss
 
   def model(self, use_noisy=False, use_embedding_loss=False):
     model_obses = self.observations() 
     model_rescaled_obses = self.observations_rescaled(model_obses)
-    model_embeddings_original = self.encoder(model_rescaled_obses, tf.nn.sigmoid if use_noisy else tf.nn.relu)
+    model_embeddings_original = self.encoder(model_rescaled_obses, tf.nn.sigmoid if use_noisy else None)
     if use_noisy:
       model_embeddings = self.embeddings_noisy(model_embeddings_original)
     else:
