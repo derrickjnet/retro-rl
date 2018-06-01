@@ -16,7 +16,7 @@ class Autoencoder:
       observations_rescaled = tf.cast(observations, tf.float32) / 255.
     return observations_rescaled
 
-  def encoder(self, inputs, embedding_activation, reuse=False):
+  def encoder(self, inputs, embedding_activation, reuse=None):
     with tf.variable_scope("encoder", reuse=reuse):
       net = tf.layers.conv2d(inputs, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="conv1")
       net = tf.layers.conv2d(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="conv2")
@@ -31,7 +31,7 @@ class Autoencoder:
       embeddings_noisy = embeddings + tf.random_uniform(tf.shape(embeddings), -0.3,0.3)
     return embeddings_noisy
 
-  def decoder(self, embeddings, reuse=False):
+  def decoder(self, embeddings, reuse=None):
     with tf.variable_scope("decoder", reuse=reuse):
       net = tf.layers.dense(embeddings, 256, activation=tf.nn.relu, name="fc2")
       net = tf.layers.dense(net, 6*6*self.nfilters, activation=tf.nn.relu, name="fc1")
@@ -58,10 +58,14 @@ class Autoencoder:
       embedding_loss = tf.reduce_mean(tf.reduce_mean(embeddings**2, [1]))
     return embedding_loss
 
+  def embed(self, embedding_activation, reuse=None):
+    model_obses = self.observations(reuse=reuse) 
+    model_rescaled_obses = self.observations_rescaled(model_obses, reuse=reuse)
+    model_embeddings = self.encoder(model_rescaled_obses, embedding_activation, reuse=reuse)
+    return model_obses, model_rescaled_obses, model_embeddings
+
   def model(self, use_noisy=False, use_embedding_loss=False):
-    model_obses = self.observations() 
-    model_rescaled_obses = self.observations_rescaled(model_obses)
-    model_embeddings_original = self.encoder(model_rescaled_obses, tf.nn.sigmoid if use_noisy else None)
+    model_obses, model_rescaled_obses, model_embeddings_original, self.embed(tf.nn.sigmoid if use_noisy else None)
     if use_noisy:
       model_embeddings = self.embeddings_noisy(model_embeddings_original)
     else:
