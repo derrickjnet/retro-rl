@@ -2,8 +2,9 @@ import os
 import tensorflow as tf
 
 class Autoencoder:
-  def __init__(self, nfilters):
+  def __init__(self, nfilters, embedding_size):
     self.nfilters = nfilters
+    self.embedding_size = embedding_size
 
   def observations(self):
     with tf.variable_scope("observations"):
@@ -21,7 +22,8 @@ class Autoencoder:
       net = tf.layers.conv2d(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="conv2")
       net = tf.layers.conv2d(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="conv3")
       net = tf.layers.conv2d(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="conv4")
-      embeddings = tf.layers.dense(tf.reshape(net, [-1,6*6*self.nfilters]), 64, activation=embedding_activation, name="fc")
+      net = tf.layers.dense(tf.reshape(net, [-1,6*6*self.nfilters]), 256, activation=tf.nn.relu, name="fc1")
+      embeddings = tf.layers.dense(net, self.embedding_size, activation=embedding_activation, name="fc2")
     return embeddings
 
   def embeddings_noisy(self, embeddings):
@@ -31,7 +33,8 @@ class Autoencoder:
 
   def decoder(self, embeddings, reuse=False):
     with tf.variable_scope("decoder", reuse=reuse):
-      net = tf.layers.dense(embeddings, 6*6*self.nfilters, activation=tf.nn.tanh, name="fc")
+      net = tf.layers.dense(embeddings, 256, activation=tf.nn.relu, name="fc2")
+      net = tf.layers.dense(net, 6*6*self.nfilters, activation=tf.nn.relu, name="fc1")
       net = tf.reshape(net, [-1, 6, 6, self.nfilters])
       net = tf.layers.conv2d_transpose(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="deconv4")
       net = tf.layers.conv2d_transpose(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="deconv3")

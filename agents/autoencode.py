@@ -27,11 +27,12 @@ events_path = sys.argv[1]
 output_path = sys.argv[2]
 
 autoencoder_nfilters = int(os.environ["RETRO_AUTOENCODER_NFILTERS"])
+autoencoder_embedding_size = int(os.environ["RETRO_AUTOENCODER_EMBEDDING_SIZE"])
 autoencoder_use_noisy = os.environ['RETRO_AUTOENCODER_NOISY'] == "true"
 autoencoder_use_embedding_loss = os.environ['RETRO_AUTOENCODER_EMBEDDING_LOSS'] == "true"
 autoencoder_model_scope = os.environ['RETRO_AUTOENCODER_MODEL_SCOPE']
 
-print("AUTOENCODER_PARAMS: nfilters=%s use_noisy=%s use_embedding_loss=%s mode_scope=%s" % (autoencoder_nfilters, autoencoder_use_noisy, autoencoder_use_embedding_loss, autoencoder_model_scope))
+print("AUTOENCODER_PARAMS: nfilters=%s embedding_size=%s use_noisy=%s use_embedding_loss=%s mode_scope=%s" % (autoencoder_nfilters, autoencoder_embedding_size, autoencoder_use_noisy, autoencoder_use_embedding_loss, autoencoder_model_scope))
 
 checkpoints_path = output_path + "tensorflow"
 os.makedirs(checkpoints_path, exist_ok=True)
@@ -41,7 +42,7 @@ config.gpu_options.allow_growth = True
 #config.log_device_placement=True
 with tf.Session(config=config) as sess:
   with tf.variable_scope(autoencoder_model_scope):
-    autoencoder = Autoencoder(nfilters = autoencoder_nfilters)
+    autoencoder = Autoencoder(nfilters = autoencoder_nfilters, embedding_size = autoencoder_embedding_size)
     model_obs, (model_embeddings_original, model_embeddings), _, (reconstruction_loss, embedding_loss), train_loss = autoencoder.model(
                                                   use_noisy = autoencoder_use_noisy, 
                                                   use_embedding_loss = autoencoder_use_embedding_loss 
