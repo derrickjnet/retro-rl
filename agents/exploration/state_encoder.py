@@ -5,7 +5,7 @@ import tensorflow as tf
 from exploration.autoencoder import Autoencoder 
 
 class StateEncoder:
-  def __init__(self, sess, embedder_dir=os.environ['RETRO_STATE_EMBEDDER_DIR'], embedder_model_scope=os.environ.get('RETRO_STATE_EMBEDDER_MODEL_SCOPE', 'state_embedder'), embedder_nfilters=int(os.environ.get('RETRO_STATE_EMBEDDER_NFILTERS',32)), predictor_dir=os.environ.get('RETRO_STATE_PREDICTOR_DIR'), predictor_model_scope=os.environ.get('RETRO_STATE_PREDICTOR_MODEL_SCOPE', 'state_predictor'), predictor_nfilters=int(os.environ.get('RETRO_STATE_PREDICTOR_NFILTES', 32)), predictor_reward_weight=float(os.environ.get('RETRO_STATE_PREDICTOR_REWARD_WEIGHT',1.0))):
+  def __init__(self, sess, embedder_dir=os.environ.get('RETRO_STATE_EMBEDDER_DIR'), embedder_model_scope=os.environ.get('RETRO_STATE_EMBEDDER_MODEL_SCOPE', 'state_embedder'), embedder_nfilters=int(os.environ.get('RETRO_STATE_EMBEDDER_NFILTERS',32)), predictor_dir=os.environ.get('RETRO_STATE_PREDICTOR_DIR'), predictor_model_scope=os.environ.get('RETRO_STATE_PREDICTOR_MODEL_SCOPE', 'state_predictor'), predictor_nfilters=int(os.environ.get('RETRO_STATE_PREDICTOR_NFILTES', 32)), predictor_reward_weight=float(os.environ.get('RETRO_STATE_PREDICTOR_REWARD_WEIGHT',1.0))):
     self.sess = sess
     self.embedder_dir = embedder_dir
     self.predictor_dir = predictor_dir

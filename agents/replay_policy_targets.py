@@ -36,12 +36,6 @@ def filter_action(a):
         a[6] = False
         a[7] = False 
         return [a] + filter_action(next_a)
-    if not np.any(a):
-      a1 = a.copy()
-      a2 = a.copy()
-      a1[6] = True
-      a2[7] = True
-      return [a1,a2]
     return [a]
 
 def warp_frame(frame, width=84, height=84):
@@ -50,6 +44,7 @@ def warp_frame(frame, width=84, height=84):
    return frame[:, :, None]
 
 def lookup_action(actions, a):
+    if not np.any(a): return -1
     return [action_idx for (action_idx, action) in zip(range(len(actions)),actions) if np.array_equal(action, a)][0]
 
 def replay_policy_targets(movie_path, game_act_name, event_file_name, obs_steps=4):
@@ -76,9 +71,7 @@ def replay_policy_targets(movie_path, game_act_name, event_file_name, obs_steps=
       new_obs, reward, done, info = env.step(action_keys)
       #new_obs, reward, done, info = env.step(filter_action(action_keys)[0])
       #new_obs, reward, done, info = env.step(random.choice(filter_action(action_keys)))
-      actions = list(map(lambda a: lookup_action(action_discretizer._actions, np.asarray(a)), filter_action(action_keys)))
       total_reward = info['screen_x'] / max(1,float(info['screen_x_end'])) * 9000.0
-      print("STEP: game_act=%s total_reward=%s action_keys=%s actions=%s reward=%s done=%s info=%s" % (game_act_name, total_reward, action_keys, actions, reward, done, info))
 
       obs.append(warp_frame(new_obs))
       if len(obs) > obs_steps:
@@ -90,9 +83,14 @@ def replay_policy_targets(movie_path, game_act_name, event_file_name, obs_steps=
       assert len(obs) == obs_steps
       obs_arr = np.dstack(obs)
 
-      for policy_action in actions: 
+      policy_actions = list(map(lambda a: lookup_action(action_discretizer._actions, np.asarray(a)), filter_action(action_keys)))
+      for policy_action in policy_actions: 
         policy_action_probs = np.zeros(len(action_discretizer._actions))
-        policy_action_probs[policy_action] = 1.0
+        if policy_action != -1:
+          policy_action_probs[policy_action] = 1.0
+        else:
+          policy_action_probs[:] = 1.0 / len(policy_action_probs)
+        print("STEP: game_act=%s total_reward=%s action_keys=%s action_probs=%s action=%s reward=%s done=%s info=%s" % (game_act_name, total_reward, action_keys, policy_action_probs, policy_action, reward, done, info))
         features = {
           'game_name' : tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(game_name)])),
           'act_name' : tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(act_name)])),

@@ -57,6 +57,7 @@ class Exploration:
 
      if state_embedding is not None:
        state_encoding = tuple(np.round(state_embedding).tolist())
+       state_embedding = tuple(state_embedding.tolist())
      else:
        state_encoding = None
 
@@ -93,7 +94,7 @@ class Exploration:
        final_reward = reward + extra_reward
 
      timestamp = datetime.datetime.now()
-     print("EXPLORE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s local_visited=%s global_visited=%s extra_reward_weight=%s extra_reward_scale=%s exploration_local_reward=%s exploration_global_reward=%s state_embedding_reward=%s relative_x=%s relative_y=%s cell=%s encoding=%s embedding=%s" % (timestamp, self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.local_visited[cell_key], self.global_visited[cell_key], extra_reward_weight, extra_reward_scale, exploration_local_reward, exploration_global_reward, state_embedding_reward, relative_x, relative_y, cell_key, list(state_encoding), list(state_embedding)), file=self.log_file)
+     print("EXPLORE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s local_visited=%s global_visited=%s extra_reward_weight=%s extra_reward_scale=%s exploration_local_reward=%s exploration_global_reward=%s state_embedding_reward=%s relative_x=%s relative_y=%s cell=%s encoding=%s embedding=%s" % (timestamp, self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.local_visited[cell_key], self.global_visited[cell_key], extra_reward_weight, extra_reward_scale, exploration_local_reward, exploration_global_reward, state_embedding_reward, relative_x, relative_y, cell_key, state_encoding, state_embedding), file=self.log_file)
      print("STEP: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s action=%s done=%s, reward=%s adjusted_reward=%s extra_reward=%s current_reward=%s current_adjusted_reward=%s current_extra_reward=%s info=%s" % (timestamp, self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, action, done, reward, adjusted_reward, extra_reward, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, info), file=self.log_file)
      sys.stdout.flush()
 
