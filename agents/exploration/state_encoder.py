@@ -47,7 +47,7 @@ class StateEncoder:
       predictor_start_timestamp = datetime.datetime.now()
       predictor_reconstruction_errors_value, predictor_reconstruction_loss_value, predictor_embedding_loss_value, _, predictor_global_step_value = self.sess.run([self.predictor_reconstruction_errors, self.predictor_reconstruction_loss, self.predictor_embedding_loss, self.predictor_train_step, self.predictor_global_step], { self.predictor_model_obses:obses })
       _, predictor_global_step_value = self.sess.run([self.predictor_train_step, self.predictor_global_step], { self.predictor_model_obses:obses })
-      predictor_rewards = self.predictor_reward_weight * np.sqrt(predictor_reconstruction_errors_value / 84 / 84)
+      predictor_rewards = self.predictor_reward_weight * predictor_reconstruction_errors_value / 84 / 84
       predictor_stop_timestamp = datetime.datetime.now()
       print("STATE_ENCODER_PREDICTOR: timestamp=%s step=%s reconstruction_loss=%s embedding_loss=%s duration=%ssec" % (predictor_stop_timestamp, predictor_global_step_value, predictor_reconstruction_loss_value, predictor_embedding_loss_value, (predictor_stop_timestamp - predictor_start_timestamp).total_seconds()))
     else:
