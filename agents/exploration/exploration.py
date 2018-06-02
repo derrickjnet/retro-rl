@@ -48,6 +48,13 @@ class Exploration:
      print("%s: timestmap=%s %s" % (action_meta[0], datetime.datetime.now(), action_meta[1]), file=self.log_file)
 
    def step(self, action, obs, reward, done, info, state_embedding, state_embedding_reward): 
+     if 'initial_reward' in info:
+       assert self.episode_step == 0
+       initial_reward = info['initial_reward']
+       self.total_reward += initial_reward
+       self.total_adjusted_reward += initial_reward
+       self.global_reward += initial_reward
+
      self.episode_step += 1
      self.total_steps += 1
      self.total_reward += reward
