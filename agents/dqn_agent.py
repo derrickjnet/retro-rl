@@ -60,7 +60,7 @@ def main():
     config.gpu_options.allow_growth = True # pylint: disable=E1101
     config.log_device_placement=False
     with tf.Session(config=config) as sess:
-      state_encoder = StateEncoder(sess)
+      state_encoder = StateEncoder(sess, num_actions=7)
 
       env = make_batched_env()
       env_ids = env.env_ids

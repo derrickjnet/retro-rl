@@ -6,13 +6,13 @@ class Autoencoder:
     self.nfilters = nfilters
     self.embedding_size = embedding_size
 
-  def observations(self):
-    with tf.variable_scope("observations"):
+  def observations(self, reuse=None):
+    with tf.variable_scope("observations", reuse=reuse):
       observations = tf.placeholder(tf.uint8, [None, 84, 84, 1])
     return observations
 
-  def observations_rescaled(self, observations):
-    with tf.variable_scope("rescaler"):
+  def observations_rescaled(self, observations, reuse=None):
+    with tf.variable_scope("rescaler", reuse=reuse):
       observations_rescaled = tf.cast(observations, tf.float32) / 255.
     return observations_rescaled
 

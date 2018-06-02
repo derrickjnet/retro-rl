@@ -29,13 +29,13 @@ class ExplorationVecEnv(VecEnv):
         assert self.actions is not None
         obses, rews, dones, infos = self.vec_env.step_wait()
         if self.state_encoder is not None:
-          state_encodings, state_ecoding_rewards = self.state_encoder.encode(np.expand_dims(obses[:,:,:,-1],-1))
+          state_embeddings, state_ecoding_rewards = self.state_encoder.encode(obses, sefl.actions)
         else:
-          state_encodings = [ None for env_idx in range(0, self.num_envs) ]
-          state_encoding_rewards = [ 0 for env_idx in range(0, self.num_envs) ]
+          state_embeddings = [ None for env_idx in range(0, self.num_envs) ]
+          state_predictor_rewards = [ 0 for env_idx in range(0, self.num_envs) ]
         final_rewards = []
         for (exploration, env_idx) in zip(self.explorations, range(0, self.num_envs)):
-          final_reward = exploration.step(self.actions[env_idx], obses[env_idx], rews[env_idx], dones[env_idx], infos[env_idx], state_encodings[env_idx], step_encoding_rewards[env_idx])
+          final_reward = exploration.step(self.actions[env_idx], obses[env_idx], rews[env_idx], dones[env_idx], infos[env_idx], state_embeddings[env_idx], step_encoding_rewards[env_idx])
           final_rewards.append(final_reward)
           if dones[env_idx]:
             exploration.reset(obses[env_idx])

@@ -36,10 +36,7 @@ def main():
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
     with tf.Session(config=config) as sess:
-        if 'RETRO_ENCODER_DIR' in os.environ:
-          state_encoder = StateEncoder(sess, encoder_dir = os.environ['RETRO_ENCODER_DIR'])
-        else:
-          state_encoder = None
+        state_encoder = StateEncoder(sess, num_actions=7)
 
         def init_fun():
           if state_encoder != None:

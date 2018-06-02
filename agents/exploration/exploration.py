@@ -12,15 +12,19 @@ import cloudpickle
 import gzip
 
 class Exploration:
-   def __init__(self, env_idx, env_id, allow_backtracking=True, max_exploration_steps=None, log_file=sys.stdout, save_state_dir=None):
+   def __init__(self, env_idx, env_id, allow_backtracking=True, max_exploration_steps=os.environ.get("RETRO_MAX_EXPLORATION_STEPS",None), extra_local_weight=float(os.environ.get("RETRO_EXPLORATION_LOCAL_WEIGHT", 10.0)), extra_global_weight=float(os.environ.get("RETRO_EXPLORATION_GLOBAL_WEIGHT", 10.0)), extra_predictor_weight=float(os.environ.get("RETRO_EXPLORATION_PREDICTOR_WEIGHT", 10.0)), log_file=sys.stdout, save_state_dir=None):
      self.env_idx = env_idx
      self.env_id = env_id 
      self.log_file = log_file
      self.save_state_dir = save_state_dir
      self.allow_backtracking = True
-     self.max_exploration_steps = max_exploration_steps
+     self.max_exploration_steps = int(max_exploration_steps) if max_exploration_steps else None
+     self.extra_local_weight = extra_local_weight
+     self.extra_global_weight = extra_global_weight
+     self.extra_predictor_weight = extra_predictor_weight
      self.episode=None
-     self.global_reward = 0
+     self.cumulative_reward = 0
+     self.cumulative_reward_emav = 0
      self.total_steps=0
      self.episode_step = 0
      self.total_reward = 0
@@ -34,7 +38,9 @@ class Exploration:
      else:
        self.episode += 1
      if self.episode > 0:
-       print("EPISODE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s total_reward=%s total_adjusted_reward=%s total_extra_reward=%s avg_episode_reward=%s" % (datetime.datetime.now(), self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, self.global_reward / float(self.episode)), file=self.log_file)
+       self.cumulative_reward += self.total_reward
+       self.cumulative_reward_emav = 0.9 * self.cumulative_reward_emav + 0.1 * self.cumulative_reward
+       print("EPISODE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s total_reward=%s total_adjusted_reward=%s total_extra_reward=%s avg_episode_reward=%s emav_episode_reward=%s" % (datetime.datetime.now(), self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, self.cumulative_reward / float(self.episode), self.cumulative_reward_emav), file=self.log_file)
        sys.stdout.flush()
      self.local_visited = dict()
      self.episode_step = 0
@@ -47,11 +53,10 @@ class Exploration:
    def action_meta(self, action_meta):
      print("%s: timestmap=%s %s" % (action_meta[0], datetime.datetime.now(), action_meta[1]), file=self.log_file)
 
-   def step(self, action, obs, reward, done, info, state_embedding, state_embedding_reward): 
+   def step(self, action, obs, reward, done, info, state_embedding, state_predictor_reward): 
      self.episode_step += 1
      self.total_steps += 1
      self.total_reward += reward
-     self.global_reward += reward
      adjusted_reward = max(0, self.total_reward - self.total_adjusted_reward)
      self.total_adjusted_reward = max(self.total_adjusted_reward, self.total_reward)
 
@@ -72,17 +77,20 @@ class Exploration:
 
      if 'y' in info:
        relative_y = info['y'] / info.get('screen_x_end',1.0)
-       extra_reward_weight = 10.0 * math.sqrt(relative_x**2 + relative_y**2)
+       visitation_reward_weight = math.sqrt(relative_x**2 + relative_y**2)
      else:
        relative_y = None
-       extra_reward_weight = 10.0 * relative_x
+       visitation_reward_weight = relative_x
 
-     exploration_local_reward = extra_reward_weight / self.local_visited[cell_key]
-     exploration_global_reward = extra_reward_weight / math.sqrt(self.global_visited[cell_key])
+     visitation_local_reward = self.extra_local_weight * visitation_reward_weight / self.local_visited[cell_key]
+     visitation_global_reward = self.extra_global_weight * visitation_reward_weight / math.sqrt(self.global_visited[cell_key])
+
+     predictor_reward = self.extra_predictor_weight * state_predictor_reward
  
-     extra_reward = exploration_local_reward + exploration_global_reward + state_embedding_reward
+     extra_reward = visitation_local_reward + visitation_global_reward + predictor_reward 
+
      if self.max_exploration_steps != None:
-       extra_reward_scale = max(0, self.max_exploration_steps - self.total_steps) / float(self.max_exploration_steps)
+       extra_reward_scale = max(0, self.max_exploration_steps - self.total_steps) / max(1.0,float(self.max_exploration_steps))
      else:
        extra_reward_scale = 1.0
      extra_reward *= extra_reward_scale
@@ -94,7 +102,7 @@ class Exploration:
        final_reward = reward + extra_reward
 
      timestamp = datetime.datetime.now()
-     print("EXPLORE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s local_visited=%s global_visited=%s extra_reward_weight=%s extra_reward_scale=%s exploration_local_reward=%s exploration_global_reward=%s state_embedding_reward=%s relative_x=%s relative_y=%s cell=%s encoding=%s embedding=%s" % (timestamp, self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.local_visited[cell_key], self.global_visited[cell_key], extra_reward_weight, extra_reward_scale, exploration_local_reward, exploration_global_reward, state_embedding_reward, relative_x, relative_y, cell_key, state_encoding, state_embedding), file=self.log_file)
+     print("EXPLORE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s local_visited=%s global_visited=%s visitation_reward_weight=%s visitation_local_reward=%s visitation_global_reward=%s predictor_reward=%s extra_reward_scale=%s relative_x=%s relative_y=%s cell=%s encoding=%s embedding=%s" % (timestamp, self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.local_visited[cell_key], self.global_visited[cell_key], visitation_reward_weight, visitation_local_reward, visitation_global_reward, predictor_reward, extra_reward_scale, relative_x, relative_y, cell_key, state_encoding, state_embedding), file=self.log_file)
      print("STEP: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s action=%s done=%s, reward=%s adjusted_reward=%s extra_reward=%s current_reward=%s current_adjusted_reward=%s current_extra_reward=%s info=%s" % (timestamp, self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, action, done, reward, adjusted_reward, extra_reward, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, info), file=self.log_file)
      sys.stdout.flush()
 

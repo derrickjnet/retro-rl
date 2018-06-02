@@ -30,14 +30,14 @@ class ExplorationBatchedEnv(BatchedWrapper):
         assert sub_batch in self.actions
         obses, rews, dones, infos = self.batched_env.step_wait(sub_batch=sub_batch)
         if self.state_encoder is not None:
-          state_embeddings, state_embedding_rewards = self.state_encoder.encode(np.expand_dims(np.stack(obses, axis=0)[:,:,:,-1],-1))
+          state_embeddings, state_predictor_rewards = self.state_encoder.encode(np.stack(obses, axis=0), self.actions[sub_batch])
         else:
           state_embeddings = [ None for env_idx in range(0, self.num_envs) ]
-          state_embedding_rewards = [ 0 for env_idx in range(0, self.num_envs) ]
+          state_predictor_rewards = [ 0 for env_idx in range(0, self.num_envs) ]
         final_rewards = []
         env_base_idx = sub_batch*self.batched_env.num_envs_per_sub_batch
         for env_offset_idx in range(0, self.batched_env.num_envs_per_sub_batch):
-          final_reward = self.explorations[env_base_idx + env_offset_idx].step(self.actions[sub_batch][env_offset_idx], obses[env_offset_idx], rews[env_offset_idx], dones[env_offset_idx], infos[env_offset_idx], state_embeddings[env_offset_idx], state_embedding_rewards[env_offset_idx])
+          final_reward = self.explorations[env_base_idx + env_offset_idx].step(self.actions[sub_batch][env_offset_idx], obses[env_offset_idx], rews[env_offset_idx], dones[env_offset_idx], infos[env_offset_idx], state_embeddings[env_offset_idx], state_predictor_rewards[env_offset_idx])
           final_rewards.append(final_reward)
           if dones[env_offset_idx]: 
             self.explorations[env_base_idx + env_offset_idx].reset(obses[env_offset_idx])
