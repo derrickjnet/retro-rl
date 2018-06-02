@@ -39,7 +39,7 @@ class Exploration:
        self.episode += 1
      if self.episode > 0:
        self.cumulative_reward += self.total_reward
-       self.cumulative_reward_emav = 0.9 * self.cumulative_reward_emav + 0.1 * self.cumulative_reward
+       self.cumulative_reward_emav = 0.9 * self.cumulative_reward_emav + 0.1 * self.total_reward
        print("EPISODE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s total_reward=%s total_adjusted_reward=%s total_extra_reward=%s avg_episode_reward=%s emav_episode_reward=%s" % (datetime.datetime.now(), self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, self.cumulative_reward / float(self.episode), self.cumulative_reward_emav), file=self.log_file)
        sys.stdout.flush()
      self.local_visited = dict()
