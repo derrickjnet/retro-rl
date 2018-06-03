@@ -2,7 +2,7 @@ import os
 import tensorflow as tf
 
 class Autoencoder:
-  def __init__(self, nfilters, embedding_size, num_images):
+  def __init__(self, nfilters, embedding_size, num_images=1):
     self.nfilters = nfilters
     self.embedding_size = embedding_size
     self.num_images = num_images
