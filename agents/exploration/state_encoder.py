@@ -16,7 +16,7 @@ class StateEncoder:
       self.embedder = Autoencoder(nfilters=embedder_nfilters, embedding_size=embedder_embedding_size)
       self.embedder_model_scope = embedder_model_scope
       with tf.variable_scope(embedder_model_scope):
-        self.embedder_model_obses, _, self.embedder_model_embeddings = self.embedder.embed(embedding_activation=tf.nn.sigmoid) 
+        self.embedder_model_obses, _, self.embedder_model_embeddings = self.embedder.embed(activation=tf.nn.tanh, embedding_activation=tf.nn.sigmoid) 
   
     if self.predictor_dir:
       self.predictor = Autoencoder(nfilters=predictor_nfilters, embedding_size=predictor_embedding_size)
@@ -50,7 +50,7 @@ class StateEncoder:
   def build_autoencoder_predictor_model(self, predictor_model_rescaled_obses, predictor_actions):
     with tf.variable_scope(self.predictor_model_scope, reuse=tf.AUTO_REUSE):
       predictor_model_rescaled_obses = predictor_model_rescaled_obses[:,:,:,-1:]
-      predictor_model_embeddings = self.predictor.encoder(predictor_model_rescaled_obses, embedding_activation=None, reuse=tf.AUTO_REUSE)
+      predictor_model_embeddings = self.predictor.encoder(predictor_model_rescaled_obses, activation=tf.nn.relu, embedding_activation=None, reuse=tf.AUTO_REUSE)
       predictor_model_outputs = self.predictor.decoder(predictor_model_embeddings)
       predictor_reconstruction_errors = self.predictor.reconstruction_errors(predictor_model_rescaled_obses, predictor_model_outputs)
       predictor_reconstruction_loss = tf.reduce_mean(predictor_reconstruction_errors)
@@ -74,7 +74,7 @@ class StateEncoder:
 
   def build_forward_predictor_model(self, predictor_model_rescaled_obses, predictor_actions):
     with tf.variable_scope(self.predictor_model_scope, reuse=tf.AUTO_REUSE):
-      predictor_model_embeddings = [self.predictor.encoder(predictor_model_rescaled_obses[:,:,:,i:i+1], embedding_activation=None, reuse=tf.AUTO_REUSE) for i in range(self.num_images)]
+      predictor_model_embeddings = [self.predictor.encoder(predictor_model_rescaled_obses[:,:,:,i:i+1], activation=tf.nn.relu, embedding_activation=None, reuse=tf.AUTO_REUSE) for i in range(self.num_images)]
     with tf.variable_scope(self.predictor_model_scope + "_internal", reuse=tf.AUTO_REUSE):
       predictor_net = tf.layers.dense(tf.concat(predictor_model_embeddings[:-1] + [tf.one_hot(predictor_actions, self.num_actions)], -1), 256, activation=tf.nn.relu, name="forward_fc1")
       predictor_embedding = tf.layers.dense(predictor_net, self.predictor.embedding_size, name="forward_fc2")
@@ -86,7 +86,7 @@ class StateEncoder:
 
   def build_inverse_predictor_model(self, predictor_model_rescaled_obses, predictor_actions):
     with tf.variable_scope(self.predictor_model_scope, reuse=tf.AUTO_REUSE):
-      predictor_model_embeddings = [self.predictor.encoder(predictor_model_rescaled_obses[:,:,:,i:i+1], embedding_activation=None, reuse=tf.AUTO_REUSE) for i in range(self.num_images)]
+      predictor_model_embeddings = [self.predictor.encoder(predictor_model_rescaled_obses[:,:,:,i:i+1], activation=tf.nn.relu, embedding_activation=None, reuse=tf.AUTO_REUSE) for i in range(self.num_images)]
     with tf.variable_scope(self.predictor_model_scope + "_internal", reuse=tf.AUTO_REUSE):
       predictor_net = tf.layers.dense(tf.concat(predictor_model_embeddings, -1), 256, activation=tf.nn.relu, name="inverse_fc1")
       predictor_logits = tf.layers.dense(predictor_net, self.num_actions, name="inverse_fc2")
