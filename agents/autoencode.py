@@ -28,6 +28,7 @@ output_path = sys.argv[2]
 
 autoencoder_nfilters = int(os.environ["RETRO_AUTOENCODER_NFILTERS"])
 autoencoder_embedding_size = int(os.environ["RETRO_AUTOENCODER_EMBEDDING_SIZE"])
+autoencoder_num_images = int(os.environ.get("RETRO_AUTOENCODER_NUM_IMAGES",1))
 autoencoder_use_noisy = os.environ['RETRO_AUTOENCODER_NOISY'] == "true"
 autoencoder_use_embedding_loss = os.environ['RETRO_AUTOENCODER_EMBEDDING_LOSS'] == "true"
 autoencoder_model_scope = os.environ['RETRO_AUTOENCODER_MODEL_SCOPE']
@@ -42,7 +43,7 @@ config.gpu_options.allow_growth = True
 #config.log_device_placement=True
 with tf.Session(config=config) as sess:
   with tf.variable_scope(autoencoder_model_scope):
-    autoencoder = Autoencoder(nfilters = autoencoder_nfilters, embedding_size = autoencoder_embedding_size)
+    autoencoder = Autoencoder(nfilters = autoencoder_nfilters, embedding_size = autoencoder_embedding_size, num_images = autoencoder_num_images)
     model_obs, (model_embeddings_original, model_embeddings), _, (reconstruction_loss, embedding_loss), train_loss = autoencoder.model(
                                                   use_noisy = autoencoder_use_noisy, 
                                                   use_embedding_loss = autoencoder_use_embedding_loss 
@@ -66,7 +67,7 @@ with tf.Session(config=config) as sess:
 
   while True:
     (batch_obs,) = sess.run(batch_tensor)
-    model_embedding_original_values, model_embedding_values, reconstruction_loss_value, embedding_loss_value, train_loss_value, _, global_step_value = sess.run([model_embeddings_original, model_embeddings, reconstruction_loss, embedding_loss, train_loss, train_step, global_step], feed_dict={model_obs:np.expand_dims(batch_obs[:,:,:,-1],3)})
+    model_embedding_original_values, model_embedding_values, reconstruction_loss_value, embedding_loss_value, train_loss_value, _, global_step_value = sess.run([model_embeddings_original, model_embeddings, reconstruction_loss, embedding_loss, train_loss, train_step, global_step], feed_dict={model_obs:batch_obs[:,:,:,-autoencoder_num_images:]})
     print("STEP: timestamp=%s step=%s reconstruction_loss=%s embedding_loss=%s train_loss=%s" % (datetime.datetime.now(), global_step_value, reconstruction_loss_value, embedding_loss_value, train_loss_value))
 
     for model_embedding_original_value in model_embedding_original_values.tolist()[0:1]:

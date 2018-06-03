@@ -2,13 +2,14 @@ import os
 import tensorflow as tf
 
 class Autoencoder:
-  def __init__(self, nfilters, embedding_size):
+  def __init__(self, nfilters, embedding_size, num_images):
     self.nfilters = nfilters
     self.embedding_size = embedding_size
+    self.num_images = num_images
 
   def observations(self, reuse=None):
     with tf.variable_scope("observations", reuse=reuse):
-      observations = tf.placeholder(tf.uint8, [None, 84, 84, 1])
+      observations = tf.placeholder(tf.uint8, [None, 84, 84, self.num_images])
     return observations
 
   def observations_rescaled(self, observations, reuse=None):
@@ -39,7 +40,7 @@ class Autoencoder:
       net = tf.layers.conv2d_transpose(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="deconv4")
       net = tf.layers.conv2d_transpose(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="deconv3")
       net = tf.layers.conv2d_transpose(net, self.nfilters, [6, 6], strides=2, padding='SAME', activation=tf.nn.tanh, name="deconv2")                
-      result = tf.layers.conv2d_transpose(net, 1, [6, 6], strides=2, padding='SAME', activation=tf.nn.sigmoid, name="deconv1")
+      result = tf.layers.conv2d_transpose(net, self.num_images, [6, 6], strides=2, padding='SAME', activation=tf.nn.sigmoid, name="deconv1")
       outputs = tf.image.resize_images(result, size=(84,84), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
     return outputs
 
@@ -65,7 +66,7 @@ class Autoencoder:
     return model_obses, model_rescaled_obses, model_embeddings
 
   def model(self, use_noisy=False, use_embedding_loss=False):
-    model_obses, model_rescaled_obses, model_embeddings_original, self.embed(tf.nn.sigmoid if use_noisy else None)
+    model_obses, model_rescaled_obses, model_embeddings_original = self.embed(embedding_activation=tf.nn.sigmoid if use_noisy else None)
     if use_noisy:
       model_embeddings = self.embeddings_noisy(model_embeddings_original)
     else:
