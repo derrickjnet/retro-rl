@@ -70,8 +70,10 @@ def main():
 
       if 'RETRO_POLICY_DIR' in os.environ:
         expert = PolicyExpert(sess, batch_size=1, policy_dir=os.environ['RETRO_POLICY_DIR'])
-      else:
+      elif not 'RETRO_NOEXPERT' in os.environ:
         expert = RandomMoveExpert()
+      else:
+        expert = None
 
       if os.environ['RETRO_DQN'] == 'noisy_net':
         dqn = DQN(*noisy_net_models(sess,

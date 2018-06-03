@@ -14,6 +14,9 @@ from baselines.common.atari_wrappers import WarpFrame
 
 from vec_env.dummy_vec_env import DummyVecEnv
 from vec_env.subprocess_vec_env import SubprocessVecEnv
+
+from exploration.curriculum_env import CurriculumEnv
+
 def get_env():
     return env
 
@@ -34,7 +37,16 @@ def make_env(extra_wrap_fn=None):
     return env_id, env
 
 def build_envs(extra_wrap_fn=None):
-  def wrap_env(env):
+  root_dir = os.environ['RETRO_ROOT_DIR']
+  movie_path_prefix =  os.environ.get('RETRO_CURRICULUM_MOVIE_PATH_PREFIX')
+  def compose_env(game, state, bk2dir):
+    env = make(game=game, state=state, bk2dir=bk2dir)
+    if movie_path_prefix is not None:
+        log_path=root_dir + "/" + game + "-" + state + "/curriculum.log"
+        movie_path = movie_path_prefix + "/" + game + "/contest/" + game + "-" + state + "-0000.bk2"
+        print("CURRICULUM_LOG: %s" % (log_path,))
+        log_file = open(log_path, "w")
+        env = CurriculumEnv(env, env.env.env, movie_path=movie_path, log_file=log_file)
     env = SonicDiscretizer(env)
     env = WarpFrame(env)
     if extra_wrap_fn is not None:
@@ -46,10 +58,10 @@ def build_envs(extra_wrap_fn=None):
     def build_env(game, state):
       bk2dir = record_dir + "/" + game + "-" + state
       os.makedirs(bk2dir, exist_ok=True)
-      return lambda: wrap_env(make(game=game, state=state, bk2dir=bk2dir))
+      return lambda: compose_env(game, state, bk2dir)
   else:
     def build_env(game, state):
-      return lambda: wrap_env(make(game=game, state=state))
+      return lambda: compose_env(game, state, None)
   subenv_ids = []
   subenvs = []
   if 'RETRO_GAMESFILE' in os.environ:

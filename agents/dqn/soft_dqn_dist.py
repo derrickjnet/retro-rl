@@ -14,6 +14,7 @@ from anyrl.models.dqn_scalar import noisy_net_dense
 from anyrl.models.util import nature_cnn, simple_mlp, take_vector_elems
 
 import sys
+import os
 import random
 import datetime
 
@@ -25,10 +26,10 @@ def rainbow_models(session,
                    max_val=10,
                    sigma0=0.5,
                    discount=0.99,
-                   discover_steps=100000, 
-                   cooling_steps=100000,
-                   start_temperature=10.0,
-                   stop_temperature=0.01,
+                   discover_steps=int(os.environ.get("RETRO_DQN_DISCOVER_STEPS", 100000)), 
+                   cooling_steps=int(os.environ.get("RETRO_DQN_COOLING_STEPS", 100000)),
+                   start_temperature=float(os.environ.get("RETRO_DQN_START_TEMPERATURE", 10.0)),
+                   stop_temperature=float(os.environ.get("RETRO_DQN_STOP_TEMPERATURE",0.01)),
                    expert_prob=0.01,
                    expert=None):
     """

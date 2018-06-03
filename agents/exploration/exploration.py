@@ -40,7 +40,7 @@ class Exploration:
      if self.episode > 0:
        self.cumulative_reward += self.total_reward
        self.cumulative_reward_emav = 0.9 * self.cumulative_reward_emav + 0.1 * self.total_reward
-       print("EPISODE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s total_reward=%s total_adjusted_reward=%s total_extra_reward=%s avg_episode_reward=%s emav_episode_reward=%s" % (datetime.datetime.now(), self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, self.cumulative_reward / float(self.episode), self.cumulative_reward_emav), file=self.log_file)
+       print("EPISODE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s total_reward=%s total_adjusted_reward=%s total_extra_reward=%s avg_episode_reward=%s emav_episode_reward=%s" % (datetime.datetime.now(), self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, self.cumulative_reward / (1+float(self.episode)), self.cumulative_reward_emav), file=self.log_file)
        sys.stdout.flush()
      self.local_visited = dict()
      self.episode_step = 0
@@ -54,6 +54,13 @@ class Exploration:
      print("%s: timestmap=%s %s" % (action_meta[0], datetime.datetime.now(), action_meta[1]), file=self.log_file)
 
    def step(self, action, obs, reward, done, info, state_embedding, state_predictor_reward): 
+     if 'initial_reward' in info:
+       assert self.episode_step == 0
+       initial_reward = info['initial_reward']
+       self.total_reward += initial_reward
+       self.total_adjusted_reward += initial_reward
+       self.global_reward += initial_reward
+
      self.episode_step += 1
      self.total_steps += 1
      self.total_reward += reward

@@ -13,6 +13,7 @@ from anyrl.models.base import TFQNetwork
 from anyrl.models.util import nature_cnn, nature_huber_loss, simple_mlp, take_vector_elems
 
 import sys
+import os
 import random
 import datetime
 
@@ -21,10 +22,10 @@ def noisy_net_models(session,
                    obs_vectorizer,
                    sigma0=0.5,
                    discount=0.99,
-                   discover_steps=100000, 
-                   cooling_steps=100000,
-                   start_temperature=10.0,
-                   stop_temperature=0.01,
+                   discover_steps=int(os.environ.get("RETRO_DQN_DISCOVER_STEPS", 100000)), 
+                   cooling_steps=int(os.environ.get("RETRO_DQN_COOLING_STEPS", 100000)),
+                   start_temperature=float(os.environ.get("RETRO_DQN_START_TEMPERATURE", 10.0)),
+                   stop_temperature=float(os.environ.get("RETRO_DQN_STOP_TEMPERATURE",0.01)),
                    expert_prob=0.01,
                    expert=None):
     """
