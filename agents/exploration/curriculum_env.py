@@ -34,17 +34,17 @@ class CurriculumEnv(gym.Wrapper):
      for i in range(self.unwrapped_env.NUM_BUTTONS):
        action_keys.append(movie.get_key(i))
      obs, reward, done, info = self.unwrapped_env.step(action_keys)
-     if info['screen_x'] == info['screen_x_end']:
-        done = True
      return obs, reward, done, info, action_keys 
 
    def compute_movie_length(self):
      movie = self._replay_reset()[0]
      done = False
      movie_length = 0
-     while not done and movie.step():
-       done = self._replay_step(movie)[2]
+     while movie.step():
        movie_length += 1
+       _, _, done, info, _ = self._replay_step(movie)
+       if done or info['screen_x'] == info['screen_x_end']:
+         break
      return movie_length
 
    def reset(self):
@@ -56,8 +56,9 @@ class CurriculumEnv(gym.Wrapper):
 
        curriculum_progress = min(1.0,self.total_steps / max(1.0,float(self.max_curriculum_steps)))
        #replay_length = math.floor(random.random() * (1-curriculum_progress) * self.movie_length)
-       replay_length = math.floor(0.95*(1-curriculum_progress) * self.movie_length)
-       replay_length = min(self.movie_length-1, replay_length)
+       replay_length = max(0,min(self.movie_length, math.floor((1-curriculum_progress) * self.movie_length)))
+       replay_length = math.floor(replay_length * 0.99 ** attempt)
+
        print("CURRICULUM_REPLAY_BEGIN: total_steps=%s total_replay_steps=%s episode=%s attempt=%s curriculum_progress=%s movie_length=%s replay_length=%s" % (self.total_steps, self.total_replay_steps, self.episode, attempt, curriculum_progress, self.movie_length, replay_length), file=self.log_file)
 
        movie, obs = self._replay_reset()
