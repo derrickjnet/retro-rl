@@ -49,6 +49,8 @@ def main():
             latest_checkpoint = tf.train.latest_checkpoint(os.environ['RETRO_INIT_DIR'])
             print("PPO2_LOAD_INIT_CHECKPOINT: %s" % (latest_checkpoint,))
             saver.restore(sess, latest_checkpoint)
+            #from tensorflow.python.tools import inspect_checkpoint as chkp
+            #chkp.print_tensors_in_checkpoint_file(latest_checkpoint,'',all_tensors=True)
 
         # Take more timesteps than we need to be sure that
         # we stop due to an exception.
