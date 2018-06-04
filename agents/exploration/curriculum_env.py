@@ -7,13 +7,14 @@ import gym
 import retro
 
 class CurriculumEnv(gym.Wrapper):
-   def __init__(self, env, unwrapped_env, movie_path, log_file=sys.stdout, max_curriculum_steps=int(os.environ.get("RETRO_CURRICULUM_MAX_STEPS", 0))):
+   def __init__(self, env, unwrapped_env, movie_path, log_file=sys.stdout, randomize_curriculum=os.environ.get("RETRO_CURRICULUM_RANDOMIZE","false") == "true", max_curriculum_steps=int(os.environ.get("RETRO_CURRICULUM_MAX_STEPS", 0))):
      super(CurriculumEnv, self).__init__(env)
      self.unwrapped_env = unwrapped_env
      self.movie_path = movie_path
      self.log_file = log_file
      self.max_curriculum_steps = max_curriculum_steps
      self.movie_length = self.compute_movie_length()
+     self.randomize_curriculum = randomize_curriculum
      
      print("CURRICULUM_MOVIE: length=%s path=%s" % (self.movie_length, movie_path,), file=self.log_file)
      self.log_file.flush()
@@ -56,9 +57,11 @@ class CurriculumEnv(gym.Wrapper):
 
        try:
          curriculum_progress = min(1.0,self.total_steps / max(1.0,float(self.max_curriculum_steps)))
-         #replay_length = math.floor(random.random() * (1-curriculum_progress) * self.movie_length)
-         replay_length = max(0,min(self.movie_length, math.floor((1-curriculum_progress) * self.movie_length)))
-         replay_length = math.floor(replay_length * 0.99 ** attempt)
+         if self.randomize_curriculum:
+           replay_length = max(0,min(self.movie_length, math.floor(random.random() * (1-curriculum_progress) * self.movie_length)))
+         else:
+           replay_length = max(0,min(self.movie_length, math.floor((1-curriculum_progress) * self.movie_length)))
+           replay_length = math.floor(replay_length * 0.99 ** attempt)
 
          print("CURRICULUM_REPLAY_BEGIN: total_steps=%s total_replay_steps=%s episode=%s attempt=%s curriculum_progress=%s movie_length=%s replay_length=%s" % (self.total_steps, self.total_replay_steps, self.episode, attempt, curriculum_progress, self.movie_length, replay_length), file=self.log_file)
 
