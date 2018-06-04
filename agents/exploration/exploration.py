@@ -76,7 +76,7 @@ class Exploration:
 
      relative_x = self.total_reward / 9000.0
 
-     if 'y' in info:
+     if False or 'y' in info:
        relative_y = info['y'] / info.get('screen_x_end',1.0)
        extra_reward_weight = 10.0 * math.sqrt(relative_x**2 + relative_y**2)
      else:
