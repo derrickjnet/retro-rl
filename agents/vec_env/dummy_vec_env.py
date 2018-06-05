@@ -5,9 +5,9 @@ from baselines.common.vec_env import VecEnv
 
 class DummyVecEnv(VecEnv):
     def __init__(self, env_specs, auto_reset=True):
-        self.env_ids, enf_fns = zip(*env_specs)
+        self.env_ids, env_fns = zip(*env_specs)
         assert len(set(self.env_ids)) == len(self.env_ids)
-        self.autor_reset = auto_reset
+        self.auto_reset = auto_reset
         self.actions = None
         self.envs = [fn() for fn in env_fns]
         env = self.envs[0]

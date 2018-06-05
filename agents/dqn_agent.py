@@ -109,7 +109,10 @@ def main():
                                   discount=discount, #0.99
                                   expert = expert
                                  ))
-      scheduler_saver = ScheduledSaver(sess, os.environ["RETRO_CHECKPOINT_DIR"] + "/tensorflow/")
+      if "RETRO_CHECKPOINT_DIR" in os.environ:
+        scheduler_saver = ScheduledSaver(sess, os.environ["RETRO_CHECKPOINT_DIR"] + "/tensorflow/")
+      else:
+        scheduler_saver = None
       player = NStepPlayer(BatchedPlayer(env, dqn.online_net), 3)
       optimize = dqn.optimize(learning_rate=1e-4)
       sess.run(tf.global_variables_initializer())
@@ -123,15 +126,16 @@ def main():
       state_encoder.initialize()
       if expert:
         expert.initialize()
+      replay_buffer=PrioritizedReplayBuffer(int(os.environ.get("RETRO_DQN_BUFFER_SIZE", 250000)), 0.5, 0.4, epsilon=0.1)
       dqn.train(num_steps=1000000, # Make sure an exception arrives before we stop.
                 player=player,
-                replay_buffer=PrioritizedReplayBuffer(int(os.environ.get("RETRO_DQN_BUFFER_SIZE", 250000)), 0.5, 0.4, epsilon=0.1),
+                replay_buffer=replay_buffer,
                 optimize_op=optimize,
                 train_interval=1,
                 target_interval=8192,
                 batch_size=32,
                 min_buffer_size=int(os.environ.get('RETRO_DQN_MIN_BUFFER_SIZE', 20000)),
-                handle_ep = lambda steps,rew: scheduler_saver.handle_episode(steps))
+                handle_ep = lambda steps,rew: scheduler_saver.handle_episode(steps) if scheduler_saver is not None else None)
 
 if __name__ == '__main__':
     try:

@@ -20,21 +20,24 @@ from exploration.curriculum_env import CurriculumEnv
 def get_env():
     return env
 
+def wrap_env(env, extra_wrap_fn):
+  env = SonicDiscretizer(env)
+  env = WarpFrame(env)
+  if extra_wrap_fn is not None:
+    env = extra_wrap_fn(env)
+  return env
+
 def make_env(extra_wrap_fn=None):
-    if 'RETRO_RECORD' in os.environ:
-      from retro_contest.local import make
-      game=os.environ['RETRO_GAME']
-      state=os.environ['RETRO_STATE']
-      env_id = game + "-" + state
-      env = make(game=game, state=state, bk2dir=os.environ['RETRO_RECORD'])
-    else:
-      env_id = 'tmp/sock'
-      env = grc.RemoteEnv('tmp/sock')
-    env = SonicDiscretizer(env)
-    env = WarpFrame(env)
-    if extra_wrap_fn is not None:
-      env = extra_wrap_fn(env)
-    return env_id, env
+  if 'RETRO_RECORD' in os.environ:
+    from retro_contest.local import make
+    game=os.environ['RETRO_GAME']
+    state=os.environ['RETRO_STATE']
+    env_id = game + "-" + state
+    env = make(game=game, state=state, bk2dir=os.environ['RETRO_RECORD'])
+  else:
+    env_id = 'tmp/sock'
+    env = grc.RemoteEnv('tmp/sock')
+  return env_id, wrap_env(env)
 
 def build_envs(extra_wrap_fn=None):
   root_dir = os.environ['RETRO_ROOT_DIR']
@@ -47,11 +50,7 @@ def build_envs(extra_wrap_fn=None):
         print("CURRICULUM_LOG: %s" % (log_path,))
         log_file = open(log_path, "w")
         env = CurriculumEnv(env, env.env.env, movie_path=movie_path, log_file=log_file)
-    env = SonicDiscretizer(env)
-    env = WarpFrame(env)
-    if extra_wrap_fn is not None:
-      env = extra_wrap_fn(env)
-    return env
+    return wrap_env(env, extra_wrap_fn)
   from retro_contest.local import make
   if 'RETRO_RECORD_DIR' in os.environ:
     record_dir=os.environ['RETRO_RECORD_DIR']
@@ -85,7 +84,7 @@ def make_batched_env(extra_wrap_fn=None):
     env.env_ids = subenv_ids
     return env
   else:
-    env = BatchedGymEnv([[wrap_env(grc.RemoteEnv('tmp/sock'))]])
+    env = BatchedGymEnv([[wrap_env(grc.RemoteEnv('tmp/sock'), extra_wrap_fn=extra_wrap_fn)]])
     env.env_ids = ['tmp/sock']
     return env
 
@@ -94,7 +93,7 @@ def make_vec_env(extra_wrap_fn=None):
     subenv_ids, subenvs = build_envs(extra_wrap_fn=extra_wrap_fn)
     return SubprocessVecEnv(zip(subenv_ids, subenvs))
   else:
-    return DummyVecEnv([('tmp/sock', lambda: wrap_env(grc.RemoteEnv('tmp/sock')))])
+    return DummyVecEnv([('tmp/sock', lambda: wrap_env(grc.RemoteEnv('tmp/sock'), extra_wrap_fn=extra_wrap_fn))])
 
 class SonicDiscretizer(gym.ActionWrapper):
     """

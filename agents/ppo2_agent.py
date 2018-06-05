@@ -11,7 +11,7 @@ import ppo2.ppo2 as ppo2
 #import baselines.ppo2.ppo2 as ppo2
 import ppo2.policies as policies
 #import baselines.ppo2.policies as policies
-import baselines.logger as logger
+#import baselines.logger as logger
 import gym_remote.exceptions as gre
 from baselines.common.atari_wrappers import FrameStack
 
@@ -32,7 +32,7 @@ def main():
     vec_env = make_vec_env(extra_wrap_fn=lambda env: FrameStack(env, 4))
 
     """Run PPO until the environment throws an exception."""
-    logger.configure(dir=os.environ.get('RETRO_CHECKPOINT_DIR'))
+    #logger.configure(dir=os.environ.get('RETRO_CHECKPOINT_DIR'))
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
     with tf.Session(config=config) as sess:
