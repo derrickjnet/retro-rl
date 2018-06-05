@@ -8,6 +8,10 @@ import csv
 
 import gym
 import gym_remote.client as grc
+
+import retro
+import retro_contest.local as retro_contest
+
 from anyrl.envs.gym import batched_gym_env, BatchedGymEnv
 
 from baselines.common.atari_wrappers import WarpFrame
@@ -29,11 +33,10 @@ def wrap_env(env, extra_wrap_fn):
 
 def make_env(extra_wrap_fn=None):
   if 'RETRO_RECORD' in os.environ:
-    from retro_contest.local import make
     game=os.environ['RETRO_GAME']
     state=os.environ['RETRO_STATE']
     env_id = game + "-" + state
-    env = make(game=game, state=state, bk2dir=os.environ['RETRO_RECORD'])
+    env = retro_context.make(game=game, state=state, bk2dir=os.environ['RETRO_RECORD'])
   else:
     env_id = 'tmp/sock'
     env = grc.RemoteEnv('tmp/sock')
@@ -43,15 +46,16 @@ def build_envs(extra_wrap_fn=None):
   root_dir = os.environ['RETRO_ROOT_DIR']
   movie_path_prefix =  os.environ.get('RETRO_CURRICULUM_MOVIE_PATH_PREFIX')
   def compose_env(game, state, bk2dir):
-    env = make(game=game, state=state, bk2dir=bk2dir)
     if movie_path_prefix is not None:
-        log_path=root_dir + "/" + game + "-" + state + "/curriculum.log"
-        movie_path = movie_path_prefix + "/" + game + "/contest/" + game + "-" + state + "-0000.bk2"
-        print("CURRICULUM_LOG: %s" % (log_path,))
-        log_file = open(log_path, "w")
-        env = CurriculumEnv(env, env.env.env, movie_path=movie_path, log_file=log_file)
+      log_path=root_dir + "/" + game + "-" + state + "/curriculum.log"
+      movie_path = movie_path_prefix + "/" + game + "/contest/" + game + "-" + state + "-0000.bk2"
+      print("CURRICULUM_LOG: %s" % (log_path,))
+      log_file = open(log_path, "w")
+      env = retro_contest.make(game=game, state=retro.STATE_NONE, bk2dir=bk2dir)
+      env = CurriculumEnv(env, movie_path=movie_path, log_file=log_file)
+    else:
+      env = retro_contest.make(game=game, state=state, bk2dir=bk2dir)
     return wrap_env(env, extra_wrap_fn)
-  from retro_contest.local import make
   if 'RETRO_RECORD_DIR' in os.environ:
     record_dir=os.environ['RETRO_RECORD_DIR']
     def build_env(game, state):
