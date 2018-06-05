@@ -109,29 +109,33 @@ def main():
                                   discount=discount, #0.99
                                   expert = expert
                                  ))
-      scheduler_saver = ScheduledSaver(sess, os.environ["RETRO_CHECKPOINT_DIR"] + "/tensorflow/")
+      if "RETRO_CHECKPOINT_DIR" in os.environ:
+        scheduler_saver = ScheduledSaver(sess, os.environ["RETRO_CHECKPOINT_DIR"] + "/tensorflow/")
+      else:
+        scheduler_saver = None
       player = NStepPlayer(BatchedPlayer(env, dqn.online_net), 3)
       optimize = dqn.optimize(learning_rate=1e-4)
       sess.run(tf.global_variables_initializer())
       if 'RETRO_INIT_DIR' in os.environ:
-        saver = tf.train.Saver(var_list=list(filter(lambda v: not 'sigma' in v.name, tf.trainable_variables('^dqn_model/'))))
+        saver = tf.train.Saver(var_list=list(filter(lambda v: not 'sigma' in v.name and not 'dqn_model/noisy_layer_1' in v.name and not 'dqn_model/noisy_layer_2' in v.name, tf.trainable_variables('^dqn_model/'))))
         latest_checkpoint = tf.train.latest_checkpoint(os.environ['RETRO_INIT_DIR'])
         print("DQN_INIT_CHECKPOINT: %s" % (latest_checkpoint,))
         saver.restore(sess, latest_checkpoint)
-        from tensorflow.python.tools import inspect_checkpoint as chkp
-        chkp.print_tensors_in_checkpoint_file(latest_checkpoint,'',all_tensors=True) 
+        #from tensorflow.python.tools import inspect_checkpoint as chkp
+        #chkp.print_tensors_in_checkpoint_file(latest_checkpoint,'',all_tensors=True) 
       state_encoder.initialize()
       if expert:
         expert.initialize()
+      replay_buffer=PrioritizedReplayBuffer(int(os.environ.get("RETRO_DQN_BUFFER_SIZE", 250000)), 0.5, 0.4, epsilon=0.1)
       dqn.train(num_steps=1000000, # Make sure an exception arrives before we stop.
                 player=player,
-                replay_buffer=PrioritizedReplayBuffer(250000, 0.5, 0.4, epsilon=0.1),
+                replay_buffer=replay_buffer,
                 optimize_op=optimize,
                 train_interval=1,
                 target_interval=8192,
                 batch_size=32,
-                min_buffer_size=20000,
-                handle_ep = lambda steps,rew: scheduler_saver.handle_episode(steps))
+                min_buffer_size=int(os.environ.get('RETRO_DQN_MIN_BUFFER_SIZE', 20000)),
+                handle_ep = lambda steps,rew: scheduler_saver.handle_episode(steps) if scheduler_saver is not None else None)
 
 if __name__ == '__main__':
     try:
