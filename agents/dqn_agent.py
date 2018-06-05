@@ -18,8 +18,6 @@ import gym_remote.exceptions as gre
 
 from dqn.random_move_expert import RandomMoveExpert
 from dqn.policy_expert import PolicyExpert
-from dqn.dqn_scalar import noisy_net_models as noisy_net_models
-from dqn.dqn_dist import rainbow_models as rainbow_models
 from dqn.soft_dqn_scalar import noisy_net_models as soft_noisy_net_models
 from dqn.soft_dqn_dist import rainbow_models as soft_rainbow_models
 from sonic_util import make_batched_env
@@ -75,24 +73,7 @@ def main():
       else:
         expert = None
 
-      if os.environ['RETRO_DQN'] == 'noisy_net':
-        dqn = DQN(*noisy_net_models(sess,
-                                  env.action_space.n,
-                                  gym_space_vectorizer(env.observation_space),
-                                  discount=discount, #0.99
-                                  expert = expert
-                                 ))
-      elif os.environ['RETRO_DQN'] == 'rainbow':
-        dqn = DQN(*rainbow_models(sess,
-                                  env.action_space.n,
-                                  gym_space_vectorizer(env.observation_space),
-                                  num_atoms=101,
-                                  min_val=-1000, #-200
-                                  max_val=1000, #200
-                                  discount=discount, #0.99
-                                  expert = expert
-                                 ))
-      elif os.environ['RETRO_DQN'] == 'soft_noisy_net':
+      if os.environ['RETRO_DQN'] == 'soft_noisy_net':
         dqn = DQN(*soft_noisy_net_models(sess,
                                   env.action_space.n,
                                   gym_space_vectorizer(env.observation_space),
