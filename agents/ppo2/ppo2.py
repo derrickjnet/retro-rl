@@ -14,10 +14,11 @@ from baselines.common.runners import AbstractEnvRunner
 class Model(object):
     def __init__(self, *, policy, ob_space, ac_space, nbatch_act, nbatch_train,
                  nsteps, ent_coef, vf_coef, max_grad_norm, 
-                 discover_steps=100000, 
-                 cooling_steps=100000,
-                 start_temperature=10.0,
-                 stop_temperature=0.01
+                 discover_steps=int(os.environ.get("RETRO_PPO2_DISCOVER_STEPS", 100000)), 
+                 cooling_steps=int(os.environ.get("RETRO_PPO2_COOLING_STEPS", 100000)),
+                 start_temperature=float(os.environ.get("RETRO_PPO2_START_TEMPERATURE", 10.0)),
+                 intermediate_temperature=float(os.environ.get("RETRO_PPO2_INTERMEDIATE_TEMPERATURE", 1.0)),
+                 stop_temperature=float(os.environ.get("RETRO_PPO2_STOP_TEMPERATURE",0.01))
                ):
         sess = tf.get_default_session()
 
@@ -28,8 +29,8 @@ class Model(object):
           self.total_steps_incr_op = tf.assign_add(self.total_steps_var, 1)
           self.temperature = tf.cond(
                                 self.total_steps_var <= discover_steps,
-                                lambda: tf.maximum(1.0, start_temperature*(1.0-tf.cast(self.total_steps_var, tf.float32) / tf.maximum(1.0,tf.cast(discover_steps, tf.float32)))),
-                                lambda: tf.maximum(stop_temperature, 1*(1.0-tf.cast(self.total_steps_var - discover_steps,tf.float32) / tf.maximum(1.0,tf.cast(cooling_steps, tf.float32))))
+                                lambda: tf.maximum(intermediate_temperature, start_temperature*(1.0-tf.cast(self.total_steps_var, tf.float32) / tf.maximum(1.0,tf.cast(discover_steps, tf.float32)))),
+                                lambda: tf.maximum(stop_temperature, intermediate_temperature*(1.0-tf.cast(self.total_steps_var - discover_steps,tf.float32) / tf.maximum(1.0,tf.cast(cooling_steps, tf.float32))))
                               )
         #END: entropy regularization
 

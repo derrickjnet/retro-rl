@@ -25,8 +25,10 @@ def noisy_net_models(session,
                    discover_steps=int(os.environ.get("RETRO_DQN_DISCOVER_STEPS", 100000)), 
                    cooling_steps=int(os.environ.get("RETRO_DQN_COOLING_STEPS", 100000)),
                    start_temperature=float(os.environ.get("RETRO_DQN_START_TEMPERATURE", 10.0)),
+                   intermediate_temperature=float(os.environ.get("RETRO_DQN_INTERMEDIATE_TEMPERATURE", 1.0)),
                    stop_temperature=float(os.environ.get("RETRO_DQN_STOP_TEMPERATURE",0.01)),
-                   expert_prob=0.01,
+                   expert_steps=int(os.environ.get("RETRO_DQN_EXPERT_STEPS", 100000)),
+                   expert_prob=float(os.environ.get("RETRO_DQN_EXPERT_PROB",0.01)),
                    expert=None):
     """
     Args:
@@ -41,8 +43,8 @@ def noisy_net_models(session,
         return NatureQNetwork(session, num_actions, obs_vectorizer, name,
                                   dueling=True,
                                   dense=partial(noisy_net_dense, sigma0=sigma0),
-                                  discover_steps=discover_steps, cooling_steps=cooling_steps, start_temperature=start_temperature, stop_temperature=stop_temperature,
-                                  expert_prob=expert_prob, expert=expert if name == 'dqn_model' else None)
+                                  discover_steps=discover_steps, cooling_steps=cooling_steps, start_temperature=start_temperature, intermediate_temperature=intermediate_temperature, stop_temperature=stop_temperature,
+                                  expert_steps=expert_steps, expert_prob=expert_prob, expert=expert if name == 'dqn_model' else None)
     return maker('dqn_model'), maker('dqn_model_target'), discount
 
 class ScalarQNetwork(TFQNetwork):
@@ -55,7 +57,7 @@ class ScalarQNetwork(TFQNetwork):
 
     def __init__(self, session, num_actions, obs_vectorizer, name,
                  dueling=False, dense=tf.layers.dense, loss_fn=tf.square, 
-                 discover_steps=None, cooling_steps=None, start_temperature=None, stop_temperature=None, expert_prob=None, expert=None):
+                 discover_steps=None, cooling_steps=None, start_temperature=None, intermediate_temperature=None, stop_temperature=None, expert_steps=None, expert_prob=None, expert=None):
         super(ScalarQNetwork, self).__init__(session, num_actions, obs_vectorizer, name)
         self.dueling = dueling
         self.dense = dense
@@ -63,6 +65,7 @@ class ScalarQNetwork(TFQNetwork):
         #BEGIN: discover
         self.discover_steps = discover_steps
         self.cooling_steps = cooling_steps
+        self.expert_steps = expert_steps
         self.expert_prob = expert_prob
         self.expert = expert
         if expert != None:
@@ -78,8 +81,8 @@ class ScalarQNetwork(TFQNetwork):
             #BEGIN: soft q learning
             self.temperature = tf.cond(
                                 self.total_steps_var <= discover_steps,
-                                lambda: tf.maximum(1.0, start_temperature*(1.0-tf.cast(self.total_steps_var, tf.float32) / tf.maximum(1.0,tf.cast(discover_steps, tf.float32)))),
-                                lambda: tf.maximum(stop_temperature, 1*(1.0-tf.cast(self.total_steps_var - discover_steps,tf.float32) / tf.maximum(1.0,tf.cast(cooling_steps, tf.float32))))
+                                lambda: tf.maximum(intermediate_temperature, start_temperature*(1.0-tf.cast(self.total_steps_var, tf.float32) / tf.maximum(1.0,tf.cast(discover_steps, tf.float32)))),
+                                lambda: tf.maximum(stop_temperature, intermediate_temperature*(1.0-tf.cast(self.total_steps_var - discover_steps,tf.float32) / tf.maximum(1.0,tf.cast(cooling_steps, tf.float32))))
                               )
             #END: soft q learning
             self.step_obs_ph = tf.placeholder(self.input_dtype,
@@ -127,9 +130,9 @@ class ScalarQNetwork(TFQNetwork):
           states[0][env_idx] = episode_step
           if self.expert is not None:
             expert_flag = states[1][env_idx]
-            if not expert_flag and random.random() > (1 - self.expert_prob) + self.expert_prob * min(1.0, float(total_steps) / max(1.0,self.discover_steps)):
+            if not expert_flag and (self.expert_prob > 1.0 or random.random() > (1 - self.expert_prob) + self.expert_prob * min(1.0, float(total_steps) / max(1.0,self.expert_steps))):
                expert_flag = True
-            elif expert_flag and random.random() > 1 - self.expert_prob * min(1.0, float(total_steps) / max(1.0,self.discover_steps)):
+            elif expert_flag and (self.expert_prob <= 1.0 and random.random() > 1 - self.expert_prob * min(1.0, float(total_steps) / max(1.0,self.expert_steps))):
                expert_flag = False
             states[1][env_idx] = expert_flag
             if expert_flag:
@@ -154,7 +157,7 @@ class ScalarQNetwork(TFQNetwork):
           else:
             action = np.argmax(action_values)
             #BEGIN: action meta
-            action_metas.append(("POLICY", "total_steps=%s env=%s episode=%s episode_step=%s action_values=%s action=%s" % (total_steps, env_idx, self.episode_idx, episode_step, list(action_values), action)))
+            action_metas.append(("POLICY", "total_steps=%s env=%s episode=%s episode_step=%s action_values=%s action=%s" % (total_steps, env_idx, episode_idx, episode_step, list(action_values), action)))
             #END: action meta
           actions.append(action)
         sys.stdout.flush()
@@ -291,16 +294,16 @@ class NatureQNetwork(ScalarQNetwork):
                  dueling=False,
                  dense=tf.layers.dense,
                  loss_fn=nature_huber_loss,
-                 discover_steps=None, cooling_steps=None, start_temperature=None, stop_temperature=None, 
-                 expert_prob=None, expert=None,
+                 discover_steps=None, cooling_steps=None, start_temperature=None, intermediate_temperature=None, stop_temperature=None, 
+                 expert_steps=None, expert_prob=None, expert=None,
                  input_dtype=tf.uint8,
                  input_scale=1 / 0xff):
         self._input_dtype = input_dtype
         self.input_scale = input_scale
         super(NatureQNetwork, self).__init__(session, num_actions, obs_vectorizer, name,
                                              dueling=dueling, dense=dense, loss_fn=loss_fn, 
-                                             discover_steps=discover_steps, cooling_steps=cooling_steps, start_temperature=start_temperature, stop_temperature=stop_temperature,
-                                             expert_prob=expert_prob, expert=expert)
+                                             discover_steps=discover_steps, cooling_steps=cooling_steps, start_temperature=start_temperature, intermediate_temperature=intermediate_temperature, stop_temperature=stop_temperature,
+                                             expert_steps=expert_steps, expert_prob=expert_prob, expert=expert)
 
     @property
     def input_dtype(self):

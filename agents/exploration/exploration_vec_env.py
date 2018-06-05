@@ -1,14 +1,18 @@
+import sys
 import os
 import numpy as np
 from baselines.common.vec_env import VecEnv
 
 class ExplorationVecEnv(VecEnv):
-    def __init__(self, vec_env, exploration_f, state_encoder=None, root_dir = os.environ['RETRO_ROOT_DIR'], record_dir=os.environ.get('RETRO_RECORD_DIR'), save_states=os.environ.get('RETRO_SAVESTATE') == "true"):
+    def __init__(self, vec_env, exploration_f, state_encoder=None, root_dir = os.environ.get('RETRO_ROOT_DIR'), record_dir=os.environ.get('RETRO_RECORD_DIR'), save_states=os.environ.get('RETRO_SAVESTATE') == "true"):
         VecEnv.__init__(self, vec_env.num_envs, vec_env.observation_space, vec_env.action_space)
         self.env_ids = vec_env.env_ids
         self.vec_env = vec_env
         self.state_encoder = state_encoder
-        self.log_files = [ open(root_dir + "/" + self.env_ids[env_idx] + "/log", "w") for env_idx in range(self.num_envs) ]
+        if root_dir is not None:
+          self.log_files = [ open(root_dir + "/" + self.env_ids[env_idx] + "/log", "w") for env_idx in range(self.num_envs) ]
+        else:
+          self.log_files = [ sys.stdout for env_idx in range(self.num_envs) ]
         if save_states:
           self.save_state_dirs = [ record_dir + "/" + self.env_ids[env_idx] for env_idx in range(self.num_envs) ]
         else:
@@ -29,13 +33,13 @@ class ExplorationVecEnv(VecEnv):
         assert self.actions is not None
         obses, rews, dones, infos = self.vec_env.step_wait()
         if self.state_encoder is not None:
-          state_encodings, state_ecoding_rewards = self.state_encoder.encode(np.expand_dims(obses[:,:,:,-1],-1))
+          state_encodings, state_encoding_rewards = self.state_encoder.encode(np.expand_dims(np.stack(obses, axis=0)[:,:,:,-1],-1))
         else:
           state_encodings = [ None for env_idx in range(0, self.num_envs) ]
           state_encoding_rewards = [ 0 for env_idx in range(0, self.num_envs) ]
         final_rewards = []
         for (exploration, env_idx) in zip(self.explorations, range(0, self.num_envs)):
-          final_reward = exploration.step(self.actions[env_idx], obses[env_idx], rews[env_idx], dones[env_idx], infos[env_idx], state_encodings[env_idx], step_encoding_rewards[env_idx])
+          final_reward = exploration.step(self.actions[env_idx], obses[env_idx], rews[env_idx], dones[env_idx], infos[env_idx], state_encodings[env_idx], state_encoding_rewards[env_idx])
           final_rewards.append(final_reward)
           if dones[env_idx]:
             exploration.reset(obses[env_idx])

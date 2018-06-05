@@ -64,7 +64,12 @@ def replay_policy_targets(movie_path, game_act_name, event_file_name, obs_steps=
 
     action_discretizer = SonicDiscretizer(env)
 
+    total_steps = 0
+    episode=0
+    episode_step = 0
     while movie.step():
+      total_steps += 1 
+
       action_keys = []
       for i in range(env.NUM_BUTTONS):
         action_keys.append(movie.get_key(i))
@@ -72,6 +77,11 @@ def replay_policy_targets(movie_path, game_act_name, event_file_name, obs_steps=
       #new_obs, reward, done, info = env.step(filter_action(action_keys)[0])
       #new_obs, reward, done, info = env.step(random.choice(filter_action(action_keys)))
       total_reward = info['screen_x'] / max(1,float(info['screen_x_end'])) * 9000.0
+
+      if total_steps % 4 != 1:
+        continue
+
+      episode_step += 1
 
       obs.append(warp_frame(new_obs))
       if len(obs) > obs_steps:
@@ -83,17 +93,20 @@ def replay_policy_targets(movie_path, game_act_name, event_file_name, obs_steps=
       assert len(obs) == obs_steps
       obs_arr = np.dstack(obs)
 
-      policy_actions = list(map(lambda a: lookup_action(action_discretizer._actions, np.asarray(a)), filter_action(action_keys)))
+      #policy_actions = list(map(lambda a: lookup_action(action_discretizer._actions, np.asarray(a)), filter_action(action_keys)))
+      policy_actions = [-1]
       for policy_action in policy_actions: 
         policy_action_probs = np.zeros(len(action_discretizer._actions))
         if policy_action != -1:
           policy_action_probs[policy_action] = 1.0
         else:
           policy_action_probs[:] = 1.0 / len(policy_action_probs)
-        print("STEP: game_act=%s total_reward=%s action_keys=%s action_probs=%s action=%s reward=%s done=%s info=%s" % (game_act_name, total_reward, action_keys, policy_action_probs, policy_action, reward, done, info))
+        print("STEP: game_act=%s total_steps=%s episode_step=%s total_reward=%s action_keys=%s action_probs=%s action=%s reward=%s done=%s info=%s" % (game_act_name, total_steps, episode_step, total_reward, action_keys, policy_action_probs, policy_action, reward, done, info))
         features = {
           'game_name' : tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(game_name)])),
           'act_name' : tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(act_name)])),
+          'episode' : tf.train.Feature(int64_list=tf.train.Int64List(value=[episode])),
+          'episode_step' : tf.train.Feature(int64_list=tf.train.Int64List(value=[episode_step])),
           'obs' : tf.train.Feature(bytes_list=tf.train.BytesList(value=[tf.compat.as_bytes(obs_arr.tostring())])),
           'obs_shape' : tf.train.Feature(int64_list=tf.train.Int64List(value=obs_arr.shape)),
           'action_probs' : tf.train.Feature(float_list=tf.train.FloatList(value=policy_action_probs)),

@@ -12,13 +12,13 @@ import cloudpickle
 import gzip
 
 class Exploration:
-   def __init__(self, env_idx, env_id, allow_backtracking=True, max_exploration_steps=None, log_file=sys.stdout, save_state_dir=None):
+   def __init__(self, env_idx, env_id, allow_backtracking=True, max_exploration_steps=os.environ.get("RETRO_MAX_EXPLORATION_STEPS",None), log_file=sys.stdout, save_state_dir=None):
      self.env_idx = env_idx
      self.env_id = env_id 
      self.log_file = log_file
      self.save_state_dir = save_state_dir
      self.allow_backtracking = True
-     self.max_exploration_steps = max_exploration_steps
+     self.max_exploration_steps = int(max_exploration_steps) if max_exploration_steps else None
      self.episode=None
      self.global_reward = 0
      self.total_steps=0
@@ -32,7 +32,7 @@ class Exploration:
      if self.episode is None:
        self.episode = 0
      else:
-       print("EPISODE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s total_reward=%s total_adjusted_reward=%s total_extra_reward=%s avg_episode_reward=%s" % (datetime.datetime.now(), self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, self.global_reward / max(1,float(self.episode))), file=self.log_file)
+       print("EPISODE: timestamp=%s env_idx=%s env_id=%s total_steps=%s episode=%s episode_step=%s total_reward=%s total_adjusted_reward=%s total_extra_reward=%s avg_episode_reward=%s" % (datetime.datetime.now(), self.env_idx, self.env_id, self.total_steps, self.episode, self.episode_step, self.total_reward, self.total_adjusted_reward, self.total_extra_reward, self.global_reward / (1+float(self.episode))), file=self.log_file)
        sys.stdout.flush()
        self.episode += 1
      self.local_visited = dict()
@@ -76,7 +76,7 @@ class Exploration:
 
      relative_x = self.total_reward / 9000.0
 
-     if 'y' in info:
+     if False or 'y' in info:
        relative_y = info['y'] / info.get('screen_x_end',1.0)
        extra_reward_weight = 10.0 * math.sqrt(relative_x**2 + relative_y**2)
      else:
@@ -88,7 +88,7 @@ class Exploration:
  
      extra_reward = exploration_local_reward + exploration_global_reward + state_embedding_reward
      if self.max_exploration_steps != None:
-       extra_reward_scale = max(0, self.max_exploration_steps - self.total_steps) / float(self.max_exploration_steps)
+       extra_reward_scale = max(0, self.max_exploration_steps - self.total_steps) / max(1,float(self.max_exploration_steps))
      else:
        extra_reward_scale = 1.0
      extra_reward *= extra_reward_scale

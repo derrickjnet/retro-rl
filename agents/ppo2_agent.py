@@ -11,7 +11,7 @@ import ppo2.ppo2 as ppo2
 #import baselines.ppo2.ppo2 as ppo2
 import ppo2.policies as policies
 #import baselines.ppo2.policies as policies
-import baselines.logger as logger
+#import baselines.logger as logger
 import gym_remote.exceptions as gre
 from baselines.common.atari_wrappers import FrameStack
 
@@ -32,7 +32,7 @@ def main():
     vec_env = make_vec_env(extra_wrap_fn=lambda env: FrameStack(env, 4))
 
     """Run PPO until the environment throws an exception."""
-    logger.configure(dir=os.environ.get('RETRO_CHECKPOINT_DIR'))
+    #logger.configure(dir=os.environ.get('RETRO_CHECKPOINT_DIR'))
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
     with tf.Session(config=config) as sess:
@@ -49,6 +49,8 @@ def main():
             latest_checkpoint = tf.train.latest_checkpoint(os.environ['RETRO_INIT_DIR'])
             print("PPO2_LOAD_INIT_CHECKPOINT: %s" % (latest_checkpoint,))
             saver.restore(sess, latest_checkpoint)
+            #from tensorflow.python.tools import inspect_checkpoint as chkp
+            #chkp.print_tensors_in_checkpoint_file(latest_checkpoint,'',all_tensors=True)
 
         # Take more timesteps than we need to be sure that
         # we stop due to an exception.
