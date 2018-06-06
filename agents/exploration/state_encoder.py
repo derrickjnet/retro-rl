@@ -146,8 +146,8 @@ class StateEncoder:
     if self.embedder_dir:
       embedder_start_timestamp = datetime.datetime.now()
       embedder_embeddings = self.sess.run(self.embedder_model_embeddings, { self.embedder_model_obses:np.expand_dims(obses[:,:,:,-1],-1) })
-      embedder_end_timestamp = datetime.datetime.now()
-      print("STATE_ENCODER_EMBEDDER: timestmap=%s step=%s duration=%s" % (embedder_end_timestamp, self.encoder_step, (embedder_stop_timestamp - embeddecr_start_timestamp).total_seconds()))
+      embedder_stop_timestamp = datetime.datetime.now()
+      print("STATE_ENCODER_EMBEDDER: timestmap=%s step=%s duration=%s" % (embedder_stop_timestamp, self.encoder_step, (embedder_stop_timestamp - embedder_start_timestamp).total_seconds()))
     else:
       embedder_embeddings = [ None for env_idx in range(len(obses)) ]
     if self.predictor_dir:
