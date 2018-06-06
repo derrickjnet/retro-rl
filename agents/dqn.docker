@@ -15,8 +15,8 @@ RUN . ~/venv/bin/activate && \
 RUN mkdir -p autoencoder.state-embedder-f64/tensorflow/
 COPY models/dqn-softx_noisy_net_discount0.99_expert-policy_init-advantage_state-embedder-f64_explorelocal-celly10-w10_exploreglobal-celly10-w10_discover100K_cool100K_expert0.01/autoencoder.state-embedder-f64/tensorflow/* autoencoder.state-embedder-f64/tensorflow/
 
-RUN mkdir -p clone.policy/tensorflow
-COPY models/dqn-softx_noisy_net_discount0.99_expert-policy_init-advantage_state-embedder-f64_explorelocal-celly10-w10_exploreglobal-celly10-w10_discover100K_cool100K_expert0.01/clone.policy/tensorflow/* clone.policy/tensorflow/
+#RUN mkdir -p clone.policy/tensorflow
+#COPY models/dqn-softx_noisy_net_discount0.99_expert-policy_init-advantage_state-embedder-f64_explorelocal-celly10-w10_exploreglobal-celly10-w10_discover100K_cool100K_expert0.01/clone.policy/tensorflow/* clone.policy/tensorflow/
 
 RUN mkdir -p clone.advantage/tensorflow
 COPY models/dqn-softx_noisy_net_discount0.99_expert-policy_init-advantage_state-embedder-f64_explorelocal-celly10-w10_exploreglobal-celly10-w10_discover100K_cool100K_expert0.01/clone.advantage/tensorflow/* clone.advantage/tensorflow/
@@ -46,11 +46,11 @@ ENV RETRO_DQN_COOLING_STEPS=0
 ENV RETRO_DQN_START_TEMPERATURE=0 
 ENV RETRO_DQN_INTERMEDIATE_TEMPERATURE=0 
 ENV RETRO_DQN_STOP_TEMPERATURE=0 
-ENV RETRO_DQN_EXPERT_STEPS=100000 
+ENV RETRO_DQN_EXPERT_STEPS=200000 
 ENV RETRO_DQN_EXPERT_PROB=0.01
 ENV RETRO_STATE_EMBEDDER_DIR=autoencoder.state-embedder-f64/tensorflow 
 ENV RETRO_STATE_EMBEDDER_NFILTERS=64
-ENV RETRO_POLICY_DIR=clone.policy/tensorflow/ 
+#ENV RETRO_POLICY_DIR=clone.policy/tensorflow/ 
 ENV RETRO_INIT_DIR=clone.advantage/tensorflow/ 
 
 CMD ["python3", "-u", "/root/compo/dqn_agent.py"]
