@@ -103,7 +103,7 @@ class CurriculumEnv(gym.Wrapper):
        import traceback
        traceback.print_exc()
        raise
-     if self.replay_reward:
+     if self.replay_reward is not None:
        info['initial_reward'] = self.replay_reward
        self.replay_reward = None
      return obs, reward, done, info 
