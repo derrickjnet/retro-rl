@@ -1,0 +1,56 @@
+FROM openai/retro-agent:tensorflow
+
+# Needed for OpenCV.
+RUN apt-get update && \
+    apt-get install -y libgtk2.0-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Baselines has some unneeded and cumbersome dependencies,
+# so we manually fetch the deps we need.
+RUN . ~/venv/bin/activate && \
+    pip install scipy tqdm joblib zmq dill progressbar2 cloudpickle opencv-python && \
+    pip install --no-deps git+https://github.com/openai/baselines.git && \
+    pip install anyrl gym-retro
+
+RUN mkdir -p autoencoder.state-embedder-f64/tensorflow/
+COPY models/dqn-softx_noisy_net_discount0.99_expert-policy_init-advantage_state-embedder-f64_explorelocal-celly10-w10_exploreglobal-celly10-w10_discover100K_cool100K_expert0.01/autoencoder.state-embedder-f64/tensorflow/* autoencoder.state-embedder-f64/tensorflow/
+
+#RUN mkdir -p clone.policy/tensorflow
+#COPY models/dqn-softx_noisy_net_discount0.99_expert-policy_init-advantage_state-embedder-f64_explorelocal-celly10-w10_exploreglobal-celly10-w10_discover100K_cool100K_expert0.01/clone.policy/tensorflow/* clone.policy/tensorflow/
+
+RUN mkdir -p clone.advantage/tensorflow
+COPY models/dqn-softx_noisy_net_discount0.99_expert-policy_init-advantage_state-embedder-f64_explorelocal-celly10-w10_exploreglobal-celly10-w10_discover100K_cool100K_expert0.01/clone.advantage/tensorflow/* clone.advantage/tensorflow/
+
+RUN mkdir ppo2/
+COPY ppo2/*.py ppo2/
+
+RUN mkdir dqn/
+COPY dqn/*.py dqn/
+
+RUN mkdir rollouts
+COPY rollouts/*.py rollouts/
+
+RUN mkdir exploration
+COPY exploration/*.py exploration/
+
+RUN mkdir vec_env/
+COPY vec_env/*.py vec_env/
+
+COPY sonic_util.py ./
+COPY dqn_agent.py ./
+
+ENV RETRO_AGENT=dqn
+ENV RETRO_DQN=soft_noisy_net
+ENV RETRO_DQN_DISCOVER_STEPS=0 
+ENV RETRO_DQN_COOLING_STEPS=0 
+ENV RETRO_DQN_START_TEMPERATURE=0 
+ENV RETRO_DQN_INTERMEDIATE_TEMPERATURE=0 
+ENV RETRO_DQN_STOP_TEMPERATURE=0 
+ENV RETRO_DQN_EXPERT_STEPS=200000 
+ENV RETRO_DQN_EXPERT_PROB=0.01
+ENV RETRO_STATE_EMBEDDER_DIR=autoencoder.state-embedder-f64/tensorflow 
+ENV RETRO_STATE_EMBEDDER_NFILTERS=64
+#ENV RETRO_POLICY_DIR=clone.policy/tensorflow/ 
+ENV RETRO_INIT_DIR=clone.advantage/tensorflow/ 
+
+CMD ["python3", "-u", "/root/compo/dqn_agent.py"]

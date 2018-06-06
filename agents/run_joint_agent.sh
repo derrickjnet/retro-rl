@@ -1,6 +1,0 @@
-export RETRO_ROOT_DIR=${RETRO_PATH:-results/}${RETRO_AGENT}-${RETRO_CONF}-${RETRO_GAMESFILE}/
-export RETRO_LOG_DIR=$RETRO_ROOT_DIR
-export RETRO_CHECKPOINT_DIR=$RETRO_LOG_DIR/tensorflow 
-mkdir $RETRO_LOG_DIR && \
-mkdir $RETRO_LOG_DIR/tensorflow && \
-RETRO_RECORD_DIR=$RETRO_ROOT_DIR python ${RETRO_AGENT}_agent.py >> $RETRO_LOG_DIR/main.log 2>&1

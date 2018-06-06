@@ -1,3 +1,0 @@
-FROM openai/retro-agent
-ADD random-agent.py .
-CMD ["python", "-u", "/root/compo/random_agent.py"]
