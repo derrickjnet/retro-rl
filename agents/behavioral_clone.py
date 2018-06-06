@@ -5,7 +5,7 @@ import tensorflow as tf
 import time
 
 import ppo2.policies as policies
-from dqn.dqn_scalar import noisy_net_models
+from dqn.soft_dqn_scalar import noisy_net_models
 from gym import spaces
 
 if os.environ['RETRO_CLONE'] == 'policy':

@@ -8,7 +8,7 @@ import csv
 
 import gym
 import gym_remote.client as grc
-from anyrl.envs.gym import batched_gym_env, BatchedGymEnv
+from batched_env.batched_gym_env import batched_gym_env, BatchedGymEnv
 
 from baselines.common.atari_wrappers import WarpFrame
 
@@ -45,11 +45,10 @@ def build_envs(extra_wrap_fn=None):
   def compose_env(game, state, bk2dir):
     env = make(game=game, state=state, bk2dir=bk2dir)
     if movie_path_prefix is not None:
-        log_path=root_dir + "/" + game + "-" + state + "/curriculum.log"
+        log_path=root_dir + "/" + game + "-" + state + "/"
         movie_path = movie_path_prefix + "/" + game + "/contest/" + game + "-" + state + "-0000.bk2"
         print("CURRICULUM_LOG: %s" % (log_path,))
-        log_file = open(log_path, "w")
-        env = CurriculumEnv(env, env.env.env, movie_path=movie_path, log_file=log_file)
+        env = CurriculumEnv(env, env.env.env, movie_path=movie_path, log_path=log_path)
     return wrap_env(env, extra_wrap_fn)
   from retro_contest.local import make
   if 'RETRO_RECORD_DIR' in os.environ:

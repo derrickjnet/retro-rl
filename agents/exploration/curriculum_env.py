@@ -7,11 +7,12 @@ import gym
 import retro
 
 class CurriculumEnv(gym.Wrapper):
-   def __init__(self, env, unwrapped_env, movie_path, log_file=sys.stdout, randomize_curriculum=os.environ.get("RETRO_CURRICULUM_RANDOMIZE","false") == "true", max_curriculum_steps=int(os.environ.get("RETRO_CURRICULUM_MAX_STEPS", 0))):
+   def __init__(self, env, unwrapped_env, movie_path, log_path, randomize_curriculum=os.environ.get("RETRO_CURRICULUM_RANDOMIZE","false") == "true", max_curriculum_steps=int(os.environ.get("RETRO_CURRICULUM_MAX_STEPS", 0))):
      super(CurriculumEnv, self).__init__(env)
      self.unwrapped_env = unwrapped_env
      self.movie_path = movie_path
-     self.log_file = log_file
+     self.log_file = open(log_path + "curriculum.log", "a")
+     self.steps_file = open(log_path + "curriculum_steps.log", "a")
      self.max_curriculum_steps = max_curriculum_steps
      self.movie_length = self.compute_movie_length()
      self.randomize_curriculum = randomize_curriculum
@@ -20,8 +21,8 @@ class CurriculumEnv(gym.Wrapper):
      self.log_file.flush()
 
      self.episode = -1 
-     self.total_steps = 0
-     self.total_replay_steps = 0
+     self.total_steps = sum(1 for line in open(log_path + "curriculum_steps.log", "r"))
+     self.episode_step = 0
 
    def _replay_reset(self):
      movie = retro.Movie(self.movie_path)
@@ -46,10 +47,12 @@ class CurriculumEnv(gym.Wrapper):
        _, _, done, info, _ = self._replay_step(movie)
        if done or info['screen_x'] == info['screen_x_end']:
          break
+     movie.close()
      return movie_length
 
    def reset(self):
      self.episode += 1
+     self.episode_step = 0
      success = False
      attempt = 0
      while not success:
@@ -63,7 +66,7 @@ class CurriculumEnv(gym.Wrapper):
            replay_length = max(0,min(self.movie_length, math.floor((1-curriculum_progress) * self.movie_length)))
            replay_length = math.floor(replay_length * 0.99 ** attempt)
 
-         print("CURRICULUM_REPLAY_BEGIN: total_steps=%s total_replay_steps=%s episode=%s attempt=%s curriculum_progress=%s movie_length=%s replay_length=%s" % (self.total_steps, self.total_replay_steps, self.episode, attempt, curriculum_progress, self.movie_length, replay_length), file=self.log_file)
+         print("CURRICULUM_REPLAY_BEGIN: total_steps=%s episode=%s attempt=%s curriculum_progress=%s movie_length=%s replay_length=%s" % (self.total_steps, self.episode, attempt, curriculum_progress, self.movie_length, replay_length), file=self.log_file)
 
          movie, obs = self._replay_reset()
 
@@ -71,12 +74,14 @@ class CurriculumEnv(gym.Wrapper):
          replay_steps = 0
          replay_reward = 0
          while not done and replay_steps < replay_length and movie.step():
-           self.total_replay_steps += 1
            replay_steps += 1
            obs, reward, done, info, action_keys = self._replay_step(movie)
-           print("CURRICULUM_STEP: total_steps=%s total_replay_steps=%s episode=%s attempt=%s movie_length=%s replay_length=%s replay_steps=%s action_keys=%s reward=%s replay_reward=%s done=%s info=%s" % (self.total_steps, self.total_replay_steps, self.episode, attempt, self.movie_length, replay_length, replay_steps, action_keys, reward, replay_reward, done, info), file=self.log_file)
+           print("CURRICULUM_REPLAY_STEP: total_steps=%s episode=%s attempt=%s movie_length=%s replay_length=%s replay_steps=%s action_keys=%s reward=%s replay_reward=%s done=%s info=%s" % (self.total_steps, self.episode, attempt, self.movie_length, replay_length, replay_steps, action_keys, reward, replay_reward, done, info), file=self.log_file)
+           self.log_file.flush()
            replay_reward += reward
        
+         movie.close()
+
          if not done:
            success = True
            self.replay_reward = replay_reward
@@ -84,19 +89,21 @@ class CurriculumEnv(gym.Wrapper):
          import traceback
          traceback.print_exc()
   
-     print("CURRICULUM_REPLAY_END: total_steps=%s total_replay_steps=%s episode=%s attempt=%s movie_length=%s replay_length=%s replay_reward=%s" % (self.total_steps, self.total_replay_steps, self.episode, attempt, self.movie_length, replay_length, replay_reward), file=self.log_file)
+     print("CURRICULUM_REPLAY_END: total_steps=%s episode=%s attempt=%s movie_length=%s replay_length=%s replay_reward=%s" % (self.total_steps, self.episode, attempt, self.movie_length, replay_length, replay_reward), file=self.log_file)
      self.log_file.flush()
      return obs
 
    def step(self, action):
      self.total_steps += 1
+     self.episode_step += 1
      try:
        obs, reward, done, info = super().step(action)
+       print("CURRICULUM_STEP: total_steps=%s episode=%s step=%s action=%s reward=%s done=%s info=%s" % (self.total_steps, self.episode, self.episode_step, action, reward, done, info), file=self.steps_file)
      except RuntimeError as e:
        import traceback
        traceback.print_exc()
        raise
-     if self.replay_reward:
+     if self.replay_reward is not None:
        info['initial_reward'] = self.replay_reward
        self.replay_reward = None
      return obs, reward, done, info 
