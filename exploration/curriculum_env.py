@@ -107,3 +107,9 @@ class CurriculumEnv(gym.Wrapper):
        info['initial_reward'] = self.replay_reward
        self.replay_reward = None
      return obs, reward, done, info 
+
+   def close(self):
+     super().close()
+     self.log_file.close()
+     self.steps_file.close()
+  
