@@ -113,7 +113,7 @@ def main():
                 replay_buffer=replay_buffer,
                 optimize_op=optimize,
                 train_interval=1,
-                target_interval=8192,
+                target_interval=int(os.environ.get("RETRO_DQN_TARGET_INTERVAL", 8192)),
                 batch_size=32,
                 min_buffer_size=int(os.environ.get('RETRO_DQN_MIN_BUFFER_SIZE', 20000)),
                 handle_ep = lambda steps,rew: scheduler_saver.handle_episode(steps) if scheduler_saver is not None else None)
